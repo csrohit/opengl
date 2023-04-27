@@ -119,8 +119,3 @@ void uninitializer(void)
 
 }
 
-
-
-//cl.exe /c /EHsc /I C:\freeglut\include ogl.cpp   (ogl.obj)
-
-//link.exe ogl.obj /LIBPATH:C:\freeglut\lib\x64 /SUBSYSTEM:CONSOLE    (ogl.exe)
