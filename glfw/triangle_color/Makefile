@@ -7,7 +7,7 @@ CC = g++
 
 CPPFLAGS 	= -Iinclude -I -DGLEW_STATIC
 CXXFLAGS	= 
-LDFLAGS 	=  -L/usr/local/lib -L/usr/lib64 -lglfw3 -lGL -lm -lX11 -lGLEW -lGLU -lOpenGL
+LDFLAGS 	=  -L/usr/local/lib -L/usr/lib64 -lglfw3 -lGL -lm -lX11 -lGLEW -lOpenGL
 all: $(TARGET)
 
 
