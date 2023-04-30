@@ -5,7 +5,7 @@ OBJS	= $(SRCS:%.cpp=%.o)
 
 CC = g++
 
-CPPFLAGS 	= -Iinclude -I /usr/local/bin/ -DGLEW_STATIC
+CPPFLAGS 	= -Iinclude -I -DGLEW_STATIC
 CXXFLAGS	= 
 LDFLAGS 	=  -L/usr/local/lib -L/usr/lib64 -lglfw3 -lGL -lm -lX11 -lGLEW -lGLU -lOpenGL
 all: $(TARGET)
