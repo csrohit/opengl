@@ -8,9 +8,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED 1)
 
 # add include path
-target_include_directories(${PROJECT_NAME} PUBLIC
-    "/usr/local/include/"
-    )
+# target_include_directories(${PROJECT_NAME} PUBLIC
+#     "/usr/local/include/"
+#     )
 
 if (UNIX)
     
@@ -19,7 +19,7 @@ if (UNIX)
 
         message(STATUS "Detected APPLE")
 
-    else (APPLE)
+    else ()
     message(STATUS "Detected linux")
 
     find_package(glfw3 3.3 REQUIRED)
@@ -31,11 +31,11 @@ if (UNIX)
     find_package(OpenGL REQUIRED)
     target_link_libraries(${PROJECT_NAME} OpenGL::GL)
     
-    endif (APPLE)
-else (WIN32)
+    endif ()
+else ()
     message(STATUS "Detected windows")
 
-endif (UNIX)
+endif ()
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
