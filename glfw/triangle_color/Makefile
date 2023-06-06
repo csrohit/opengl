@@ -3,19 +3,17 @@ TARGET = ogl
 SRCS 	= $(shell find $(SRC_DIRS) -name '*.cpp')
 OBJS	= $(SRCS:%.cpp=%.o)
 
-CC = g++
-
-CPPFLAGS 	= -Iinclude -I -DGLEW_STATIC
+CPPFLAGS 	= -Iinclude -I /usr/local/bin/
 CXXFLAGS	= 
-LDFLAGS 	=  -L/usr/local/lib -L/usr/lib64 -lglfw3 -lGL -lm -lX11 -lGLEW -lOpenGL
+LDFLAGS 	=  -L/usr/local/lib -lglfw3 -lGL -lX11 -lGLEW
 all: $(TARGET)
 
 
 $(TARGET): $(OBJS)
-	$(CC) $(CPPFLAGS) $^ $(LDFLAGS) -o $(TARGET)
+	g++ $(CPPFLAGS) $^ $(LDFLAGS) -o $(TARGET)
 
 %.o: %.c
-	$(CC) -c $(CPPFLAGS) -o $@ $<
+	g++ -c $(CPPFLAGS) -o $@ $<
 
 clean: 
 	rm $(TARGET) $(OBJS)
