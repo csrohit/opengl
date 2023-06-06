@@ -3,7 +3,7 @@ TARGET = ogl
 SRCS 	= $(shell find $(SRC_DIRS) -name '*.cpp')
 OBJS	= $(SRCS:%.cpp=%.o)
 
-CPPFLAGS 	= -Iinclude -I /usr/local/bin/
+CPPFLAGS 	= -Iinclude
 CXXFLAGS	= 
 LDFLAGS 	=  -L/usr/local/lib -lglfw3 -lGL -lX11 -lGLEW
 all: $(TARGET)
