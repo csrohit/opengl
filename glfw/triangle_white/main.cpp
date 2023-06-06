@@ -1,6 +1,6 @@
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
-
+#include <iostream>
 int main(void)
 {
     GLFWwindow* window;
@@ -41,7 +41,22 @@ int main(void)
         /* Poll for and process events */
         glfwPollEvents();
     }
+    const GLubyte* renderer = glGetString(GL_RENDERER);
+    const GLubyte* vendor = glGetString(GL_VENDOR);
 
+    // Output the graphics card information
+    std::cout << "Renderer: " << renderer << std::endl;
+    std::cout << "Vendor: " << vendor << std::endl;
+// Get the number of available OpenGL extensions
+    GLint numExtensions = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+
+    // Display the names of the available graphics cards
+    std::cout << "Available Graphics Cards:\n";
+    // for (GLint i = 0; i < numExtensions; ++i) {
+    //     const GLubyte* extension = glGetStringi(GL_EXTENSIONS, i);
+    //     std::cout << extension << "\n";
+    // }
     glfwTerminate();
     return 0;
 }

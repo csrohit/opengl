@@ -10,10 +10,10 @@ all: $(TARGET)
 
 
 $(TARGET): $(OBJS)
-	gcc $(CPPFLAGS) $^ $(LDFLAGS) -o $(TARGET)
+	g++ $(CPPFLAGS) $^ $(LDFLAGS) -o $(TARGET)
 
 %.o: %.c
-	gcc -c $(CPPFLAGS) -o $@ $<
+	g++ -c $(CPPFLAGS) -o $@ $<
 
 clean: 
 	rm $(TARGET) $(OBJS)
