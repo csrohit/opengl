@@ -1,0 +1,15 @@
+[
+ {
+  "directory": "/home/csrohit/code/opengl/freeglut/window",
+  "arguments": [
+   "g++",
+   "-Iinclude",
+   "-I/usr/local/include",
+   "-c",
+   "-o",
+   "main.o",
+   "main.cpp"
+  ],
+  "file": "main.cpp"
+ }
+]

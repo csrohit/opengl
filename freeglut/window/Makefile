@@ -1,9 +1,12 @@
-TARGET = ogl
+
+TARGET = window
+
+SRC_DIRS = ./
 
 SRCS 	= $(shell find $(SRC_DIRS) -name '*.cpp')
 OBJS	= $(SRCS:%.cpp=%.o)
 
-CPPFLAGS 	= -Iinclude
+CPPFLAGS 	= -Iinclude -I/usr/local/include
 CXXFLAGS	= 
 LDFLAGS 	= -lglut -lGL -lGLU
 
