@@ -6,7 +6,10 @@ add_executable(${PROJECT_NAME} main.cpp)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED 1)
-
+set(OPENGL_GL_PREFERENCE GLVND)
+if (POLICY CMP0072)
+  cmake_policy (SET CMP0072 NEW)
+endif(POLICY CMP0072)
 # add include path
 # target_include_directories(${PROJECT_NAME} PUBLIC
 #     "/usr/local/include/"
