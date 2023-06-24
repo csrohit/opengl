@@ -10,20 +10,22 @@ set(OPENGL_GL_PREFERENCE GLVND)
 if (POLICY CMP0072)
   cmake_policy (SET CMP0072 NEW)
 endif(POLICY CMP0072)
-# add include path
-# target_include_directories(${PROJECT_NAME} PUBLIC
-#     "/usr/local/include/"
-#     )
 
 if (UNIX)
     
     message(STATUS "Detected UNIX")
     if (APPLE)
 
+        # add include path
+        target_include_directories(${PROJECT_NAME} PUBLIC
+           "/usr/local/include/"
+        )
+
+        target_link_directories(${PROJECT_NAME} PUBLIC
+            "/opt/homebrew/Cellar/glew/2.2.0_1/lib"
+        )
         message(STATUS "Detected APPLE")
 
-    else ()
-    message(STATUS "Detected linux")
 
     find_package(glfw3 3.3 REQUIRED)
     target_link_libraries(${PROJECT_NAME} glfw)
@@ -31,9 +33,21 @@ if (UNIX)
     find_package(GLEW REQUIRED)
     target_link_libraries(${PROJECT_NAME} GLEW)
 
+    if(GLEW_FOUND)
+        message(STATUS "GLEW is found")
+    endif ()
+
     find_package(OpenGL REQUIRED)
     target_link_libraries(${PROJECT_NAME} OpenGL::GL)
     
+    if(OpenGL_FOUND)
+        message(STATUS "OpenGL found")
+        message(STATUS ${OPENGL_LIBRARY_DIR})
+        message(STATUS ${OPENGL_INCLUDE_DIR})
+    endif ()
+
+    else ()
+    message(STATUS "Detected linux")
     endif ()
 else ()
     message(STATUS "Detected windows")

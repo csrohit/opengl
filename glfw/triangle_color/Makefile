@@ -5,7 +5,7 @@ OBJS	= $(SRCS:%.cpp=%.o)
 
 CPPFLAGS 	= -Iinclude
 CXXFLAGS	= 
-LDFLAGS 	=  -L/usr/local/lib -lglfw3 -lGL -lX11 -lGLEW
+LDFLAGS 	=  -L/usr/local/lib -lglfw3 -lGL -lX11 -lGLEW 
 all: $(TARGET)
 
 
