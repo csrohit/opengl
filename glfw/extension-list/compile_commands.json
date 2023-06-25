@@ -1,0 +1,31 @@
+[
+ {
+  "directory": "/home/csrohit/code/opengl/glfw/window",
+  "arguments": [
+   "g++",
+   "-Iinclude",
+   "-I",
+   "/usr/local/bin/",
+   "-c",
+   "-o",
+   "main.o",
+   "main.cpp"
+  ],
+  "file": "main.cpp"
+ },
+ {
+  "directory": "/home/csrohit/code/opengl/glfw/glew",
+  "arguments": [
+   "g++",
+   "-Iinclude",
+   "-I",
+   "/usr/local/bin/",
+   "-DGLEW_STATIC",
+   "-c",
+   "-o",
+   "main.o",
+   "main.cpp"
+  ],
+  "file": "main.cpp"
+ }
+]

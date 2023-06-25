@@ -1,0 +1,20 @@
+TARGET = extensions
+
+SRCS 	= $(shell find $(SRC_DIRS) -name '*.cpp')
+OBJS	= $(SRCS:%.cpp=%.o)
+
+CPPFLAGS 	= -Iinclude
+CXXFLAGS	= 
+LDFLAGS 	=  -L/usr/local/lib -lglfw3 -lGL -lX11 -lGLEW 
+all: $(TARGET)
+
+
+$(TARGET): $(OBJS)
+	g++ $(CPPFLAGS) $^ $(LDFLAGS) -o $(TARGET)
+
+%.o: %.c
+	g++ -c $(CPPFLAGS) -o $@ $<
+
+clean: 
+	rm $(TARGET) $(OBJS)
+
