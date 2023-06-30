@@ -1,4 +1,4 @@
-TARGET = vao
+TARGET = shader
 
 SRCS 	= $(shell find $(SRC_DIRS) -name '*.cpp')
 OBJS	= $(SRCS:%.cpp=%.o)

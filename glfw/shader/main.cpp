@@ -1,6 +1,6 @@
 /**
  * @file    main.cpp
- * @brief   Draw first triangle
+ * @brief   Draw red triangle using shaders
  * @author  Rohit Nimkar
  * @date    06/25/2023
  * @version 1.0
@@ -96,7 +96,6 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(program);
-        std::cout << "Using program " << program << std::endl;
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
         glVertexAttribPointer(0, 3, /* nElements per vertex */
