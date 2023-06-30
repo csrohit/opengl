@@ -72,6 +72,8 @@ int main(void)
 
     // Dark blue background
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     glGenVertexArrays(1, &vertexArray);
     glBindVertexArray(vertexArray);
@@ -191,7 +193,7 @@ int main(void)
     glm::mat4 MVP = Projection * View * Model;
 
     do {
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(program);
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
