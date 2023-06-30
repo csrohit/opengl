@@ -1,7 +1,8 @@
 TARGET = vao
 
+BUILD_DIR = build
 SRCS 	= $(shell find $(SRC_DIRS) -name '*.cpp')
-OBJS	= $(SRCS:%.cpp=%.o)
+OBJS	= $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
 
 CPPFLAGS 	= -Iinclude
 CXXFLAGS	= 
