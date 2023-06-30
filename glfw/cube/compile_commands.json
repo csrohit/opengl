@@ -1,0 +1,26 @@
+[
+ {
+  "directory": "/home/csrohit/code/opengl/glfw/shader",
+  "arguments": [
+   "g++",
+   "-Iinclude",
+   "-c",
+   "-o",
+   "main.o",
+   "main.cpp"
+  ],
+  "file": "main.cpp"
+ },
+ {
+  "directory": "/home/csrohit/code/opengl/glfw/shader",
+  "arguments": [
+   "g++",
+   "-Iinclude",
+   "-c",
+   "-o",
+   "shader.o",
+   "shader.cpp"
+  ],
+  "file": "shader.cpp"
+ }
+]
