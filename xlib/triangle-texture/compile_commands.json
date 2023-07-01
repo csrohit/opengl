@@ -1,0 +1,44 @@
+[
+ {
+  "directory": "/home/csrohit/code/opengl/xlib/triangle-texture",
+  "arguments": [
+   "g++",
+   "-DXK_MISCELLANY",
+   "-Iinclude",
+   "-g3",
+   "-o",
+   "build/src/main.o",
+   "-c",
+   "src/main.cpp"
+  ],
+  "file": "src/main.cpp"
+ },
+ {
+  "directory": "/home/csrohit/code/opengl/xlib/triangle-texture",
+  "arguments": [
+   "g++",
+   "-DXK_MISCELLANY",
+   "-Iinclude",
+   "-g3",
+   "-o",
+   "build/src/shader.o",
+   "-c",
+   "src/shader.cpp"
+  ],
+  "file": "src/shader.cpp"
+ },
+ {
+  "directory": "/home/csrohit/code/opengl/xlib/triangle-texture",
+  "arguments": [
+   "g++",
+   "-DXK_MISCELLANY",
+   "-Iinclude",
+   "-g3",
+   "-o",
+   "build/src/stb.o",
+   "-c",
+   "src/stb.cpp"
+  ],
+  "file": "src/stb.cpp"
+ }
+]
