@@ -48,16 +48,43 @@ int main()
     GLint result                 = 0;
     GLuint program               = 0U;
     GLuint vertexBuffer          = 0U;
-    GLuint vertexArrayBuffer = 0U;
+    GLuint vertexArrayBuffer     = 0U;
+    GLuint indexBuffer           = 0U;
     GLboolean shouldDraw         = false;
 
     // clang-format off
     static const GLfloat vertexBufferData[] = {
-        /* front-face */
         -1.0, -1.0 , 1.0, 1.0, 0.0, 0.0,
         -1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
         1.0, 1.0, 1.0, 0.0, 1.0, 1.0,
         1.0, -1.0, 1.0, 0.0, 0.0, 1.0,
+        -1.0, -1.0, -1.0, 1.0, 0.0, 0.0,
+        -1.0, 1.0, -1.0, 1.0, 1.0, 0.0,
+        1.0, 1.0, -1.0, 0.0, 1.0, 1.0,
+        1.0, -1.0, -1.0, 0.0, 0.0, 1.0,
+    };
+
+    static const unsigned int indices[] = {
+        /* font-face */
+        0, 1, 2,
+        0, 3, 2,
+
+        /* rear face */
+        4, 5, 6,
+        4, 7, 6,
+
+        /* left face */
+        0, 1, 4,
+        5, 1, 4,
+
+        1, 5, 2,
+        6, 5, 2,
+
+        0, 4, 3,
+        7, 4, 3,
+
+        2, 3, 7,
+        2, 6, 7
     };
     // clang-format on
 
@@ -138,10 +165,14 @@ int main()
     /* initialize vertex buffer */
     glGenVertexArrays(1, &vertexArrayBuffer);
     glGenBuffers(1, &vertexBuffer);
+    glGenBuffers(1, &indexBuffer);
 
     glBindVertexArray(vertexArrayBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexBufferData), vertexBufferData, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     // Create and compile our GLSL program from the shaders
     result = LoadShaders("vertex.glsl", "fragment.glsl", &program);
@@ -159,9 +190,9 @@ int main()
     /* generate transformation matrix */
     GLuint MatrixID      = glGetUniformLocation(program, "MVP");
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
-    glm::mat4 View       = glm::lookAt(glm::vec3(0, 0, 6), // Camera is at (4,3,3), in World Space
-              glm::vec3(0, 0, 0),                           // and looks at the origin
-              glm::vec3(0, 1, 0)                            // Head is up (set to 0,-1,0 to look upside-down)
+    glm::mat4 View       = glm::lookAt(glm::vec3(3, 3, 5), // Camera is at (4,3,3), in World Space
+              glm::vec3(0, 0, 0),                          // and looks at the origin
+              glm::vec3(0, 1, 0)                           // Head is up (set to 0,-1,0 to look upside-down)
           );
     glm::mat4 Model      = glm::mat4(1.0f);
     glm::mat4 MVP        = Projection * View * Model;
@@ -169,6 +200,8 @@ int main()
     while (!globalAbortFlag)
     {
         XEvent evt;
+        // if (XPending(dpy))
+        // {
         XNextEvent(dpy, &evt);
         switch (evt.type)
         {
@@ -190,6 +223,26 @@ int main()
                 globalAbortFlag = true;
                 shouldDraw      = false;
             }
+            static GLint zcounter  = 3;
+            static GLint ycounter = 3;
+            static GLint xcounter = 3;
+                    switch (sym)
+            {
+            case XK_Up: ycounter++; break;
+            case XK_Down: ycounter--; break;
+            case XK_Right: zcounter++; break;
+            case XK_Left: zcounter--; break;
+            case XK_x: xcounter++; break;
+            case XK_y: xcounter--; break;
+
+            }
+            View = glm::lookAt(glm::vec3(xcounter, ycounter, zcounter), // Camera is at (4,3,3), in World Space
+                                                         //
+                glm::vec3(0, 0, 0),                      // and looks at the origin
+                glm::vec3(0, 1, 0)                       // Head is up (set to 0,-1,0 to look upside-down)
+            );
+            MVP  = Projection * View * Model;
+            std::cout << "incrementing counter " << zcounter << std::endl;
             break;
         }
         case MapNotify:
@@ -206,6 +259,7 @@ int main()
             break;
         }
         }
+        // }
 
         if (!shouldDraw) continue;
 
@@ -215,21 +269,24 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(program);
+
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
         /* enable vertex buffer */
         glBindVertexArray(vertexArrayBuffer);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(GLfloat), (void*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
 
         /* enable color buffer */
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
 
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
         glXSwapBuffers(dpy, w);
     }
 
     /* resource cleanup */
+    glDeleteBuffers(1, &indexBuffer);
     glDeleteBuffers(1, &vertexBuffer);
     glDeleteVertexArrays(1, &vertexArrayBuffer);
     glDeleteProgram(program);
