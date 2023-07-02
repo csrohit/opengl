@@ -209,11 +209,12 @@ int main()
     /* generate transformation matrix */
     GLuint MatrixID      = glGetUniformLocation(program, "MVP");
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
-    glm::mat4 View       = glm::lookAt(glm::vec3(3, 3, 5), // Camera is at (4,3,3), in World Space
+    glm::mat4 View       = glm::lookAt(glm::vec3(1, 3, 2), // Camera is at (4,3,3), in World Space
               glm::vec3(0, 0, 0),                          // and looks at the origin
               glm::vec3(0, 1, 0)                           // Head is up (set to 0,-1,0 to look upside-down)
           );
-    glm::mat4 Model      = glm::mat4(1.0f);
+    // glm::mat4 Model      = glm::mat4(1.0f);
+    glm::mat4 Model = glm::scale(glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0.0, 0.0, 1.0)), glm::vec3(0.5, 0.5, 0.5));
     glm::mat4 MVP        = Projection * View * Model;
 
     /* load and create texture */
@@ -283,21 +284,14 @@ int main()
 
         if (!shouldDraw) continue;
 
-        static GLfloat x, y = 3.0, z;
-        static GLdouble theta = 3;
-        theta += 0.005;
-        if(theta > 6.28318531)
+        static GLfloat theta = 3;
+        theta += 0.01;
+        if(theta > glm::radians(360.0))
         {
             theta = 0.0;
         }
-        x    = 4 * sin(theta);
-        z    = 4 * cos(theta);
-        y    = 4 * cos(theta);
-        View = glm::lookAt(glm::vec3(x, y, z),
-            glm::vec3(0, 0, 0), /* camera looking at */
-            glm::vec3(0, 1, 0)  /* up vector */
-        );
-        MVP  = Projection * View * Model;
+        glm::mat4 old = glm::rotate(Model, theta, glm::vec3(0.0, 1.0, 0.0));
+        MVP  = Projection * View * old;
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
