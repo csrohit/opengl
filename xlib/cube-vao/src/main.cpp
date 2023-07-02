@@ -17,6 +17,7 @@
 #include <GL/glext.h>
 #include <X11/X.h>
 #include <X11/Xutil.h>
+#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
@@ -28,6 +29,8 @@
 #include "X11/XKBlib.h"
 #include "shader.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <math.h>
+#include "stb_image.h"
 
 #define GLX_MAJOR_MIN 1
 #define GLX_MINOR_MIN 2
@@ -49,19 +52,24 @@ int main()
     GLuint program               = 0U;
     GLuint vertexBuffer          = 0U;
     GLuint vertexArrayBuffer     = 0U;
+    GLuint texture     = 0U;
     GLuint indexBuffer           = 0U;
     GLboolean shouldDraw         = false;
+        GLint width                  = 0;
+    GLint height                 = 0;
+    GLint nrChannels             = 0;
 
     // clang-format off
     static const GLfloat vertexBufferData[] = {
-        -1.0, -1.0 , 1.0, 1.0, 0.0, 0.0,
-        -1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
-        1.0, 1.0, 1.0, 0.0, 1.0, 1.0,
-        1.0, -1.0, 1.0, 0.0, 0.0, 1.0,
-        -1.0, -1.0, -1.0, 1.0, 0.0, 0.0,
-        -1.0, 1.0, -1.0, 1.0, 1.0, 0.0,
-        1.0, 1.0, -1.0, 0.0, 1.0, 1.0,
-        1.0, -1.0, -1.0, 0.0, 0.0, 1.0,
+        -1.0, -1.0 , 1.0,    0.0, 0.0, 0.0,
+        -1.0, 1.0, 1.0,      0.0, 1.0, 0.0,
+        1.0, 1.0, 1.0,       1.0, 1.0, 0.0,
+        1.0, -1.0, 1.0,      1.0, 0.0, 0.0,
+
+        -1.0, -1.0, -1.0,    1.0, 0.0, 0.0,
+        -1.0, 1.0, -1.0,     1.0, 1.0, 0.0,
+        1.0, 1.0, -1.0,      0.0, 1.0, 0.0,
+        1.0, -1.0, -1.0,     0.0, 0.0, 0.0,
     };
 
     static const unsigned int indices[] = {
@@ -197,11 +205,33 @@ int main()
     glm::mat4 Model      = glm::mat4(1.0f);
     glm::mat4 MVP        = Projection * View * Model;
 
+  /* load and create texture */
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    /* set the texture wrapping parameters */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    /* set texture filtering parameters */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    /* load image, create texture and generate mipmaps */
+    unsigned char* data = stbi_load("./wall.jpg", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else { std::cout << "Failed to load texture" << std::endl; }
+    stbi_image_free(data);
+
+
     while (!globalAbortFlag)
     {
         XEvent evt;
-        // if (XPending(dpy))
-        // {
+        if (XPending(dpy))
+        {
         XNextEvent(dpy, &evt);
         switch (evt.type)
         {
@@ -223,26 +253,6 @@ int main()
                 globalAbortFlag = true;
                 shouldDraw      = false;
             }
-            static GLint zcounter  = 3;
-            static GLint ycounter = 3;
-            static GLint xcounter = 3;
-                    switch (sym)
-            {
-            case XK_Up: ycounter++; break;
-            case XK_Down: ycounter--; break;
-            case XK_Right: zcounter++; break;
-            case XK_Left: zcounter--; break;
-            case XK_x: xcounter++; break;
-            case XK_y: xcounter--; break;
-
-            }
-            View = glm::lookAt(glm::vec3(xcounter, ycounter, zcounter), // Camera is at (4,3,3), in World Space
-                                                         //
-                glm::vec3(0, 0, 0),                      // and looks at the origin
-                glm::vec3(0, 1, 0)                       // Head is up (set to 0,-1,0 to look upside-down)
-            );
-            MVP  = Projection * View * Model;
-            std::cout << "incrementing counter " << zcounter << std::endl;
             break;
         }
         case MapNotify:
@@ -259,9 +269,27 @@ int main()
             break;
         }
         }
-        // }
+        }
 
         if (!shouldDraw) continue;
+            static GLint counter = 0;
+            static GLfloat zcounter  = 3;
+            static GLint ycounter = 3;
+            static GLfloat xcounter = 3;
+            counter++;
+            GLdouble theta = counter;
+
+            zcounter = 4*sin(theta/180);
+            xcounter = 4* cos(theta/180);
+            std::cout << "theta: " << theta << std::endl;
+
+            View = glm::lookAt(glm::vec3(xcounter, ycounter, zcounter), // Camera is at (4,3,3), in World Space
+                                                         //
+                glm::vec3(0, 0, 0),                      // and looks at the origin
+                glm::vec3(0, 1, 0)                       // Head is up (set to 0,-1,0 to look upside-down)
+            );
+            MVP  = Projection * View * Model;
+            std::cout << "incrementing counter " << zcounter << std::endl;
 
         /* redraw frame */
         std::cout << "redrawing frame" << std::endl;
@@ -269,7 +297,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(program);
-
+        glBindTexture(GL_TEXTURE_2D, texture);
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
         /* enable vertex buffer */
         glBindVertexArray(vertexArrayBuffer);
@@ -278,7 +306,7 @@ int main()
 
         /* enable color buffer */
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
 
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
