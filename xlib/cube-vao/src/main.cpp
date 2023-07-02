@@ -286,20 +286,18 @@ int main()
         static GLfloat x, y = 3.0, z;
         static GLdouble theta = 3;
         theta += 0.005;
+        if(theta > 6.28318531)
+        {
+            theta = 0.0;
+        }
         x    = 4 * sin(theta);
         z    = 4 * cos(theta);
         y    = 4 * cos(theta);
-        View = glm::lookAt(glm::vec3(x, y, z), // Camera is at (4,3,3), in World Space
-                                               //
-            glm::vec3(0, 0, 0),                // and looks at the origin
-            glm::vec3(0, 1, 0)                 // Head is up (set to 0,-1,0 to look upside-down)
+        View = glm::lookAt(glm::vec3(x, y, z),
+            glm::vec3(0, 0, 0), /* camera looking at */
+            glm::vec3(0, 1, 0)  /* up vector */
         );
         MVP  = Projection * View * Model;
-
-        View = glm::lookAt(glm::vec3(3, 3, 5), // Camera is at (4,3,3), in World Space
-            glm::vec3(0, 0, 0),                // and looks at the origin
-            glm::vec3(0, 1, 0)                 // Head is up (set to 0,-1,0 to look upside-down)
-        );
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
