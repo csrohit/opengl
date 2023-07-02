@@ -1,0 +1,28 @@
+[
+ {
+  "directory": "/home/csrohit/code/opengl/xlib/shader",
+  "arguments": [
+   "g++",
+   "-DXK_MISCELLANY",
+   "-Iinclude",
+   "-o",
+   "build/src/main.o",
+   "-c",
+   "src/main.cpp"
+  ],
+  "file": "src/main.cpp"
+ },
+ {
+  "directory": "/home/csrohit/code/opengl/xlib/shader",
+  "arguments": [
+   "g++",
+   "-DXK_MISCELLANY",
+   "-Iinclude",
+   "-o",
+   "build/src/shader.o",
+   "-c",
+   "src/shader.cpp"
+  ],
+  "file": "src/shader.cpp"
+ }
+]
