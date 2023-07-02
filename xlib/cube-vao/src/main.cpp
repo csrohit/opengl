@@ -52,24 +52,24 @@ int main()
     GLuint program               = 0U;
     GLuint vertexBuffer          = 0U;
     GLuint vertexArrayBuffer     = 0U;
-    GLuint texture     = 0U;
+    GLuint texture               = 0U;
     GLuint indexBuffer           = 0U;
     GLboolean shouldDraw         = false;
-        GLint width                  = 0;
+    GLint width                  = 0;
     GLint height                 = 0;
     GLint nrChannels             = 0;
 
     // clang-format off
     static const GLfloat vertexBufferData[] = {
-        -1.0, -1.0 , 1.0,    0.0, 0.0, 0.0,
-        -1.0, 1.0, 1.0,      0.0, 1.0, 0.0,
-        1.0, 1.0, 1.0,       1.0, 1.0, 0.0,
-        1.0, -1.0, 1.0,      1.0, 0.0, 0.0,
+        -1.0, -1.0 , 1.0,    0.0, 0.0,
+        -1.0, 1.0, 1.0,      0.0, 1.0,
+        1.0, 1.0, 1.0,       1.0, 1.0,
+        1.0, -1.0, 1.0,      1.0, 0.0,
 
-        -1.0, -1.0, -1.0,    1.0, 0.0, 0.0,
-        -1.0, 1.0, -1.0,     1.0, 1.0, 0.0,
-        1.0, 1.0, -1.0,      0.0, 1.0, 0.0,
-        1.0, -1.0, -1.0,     0.0, 0.0, 0.0,
+        -1.0, -1.0, -1.0,    1.0, 0.0,
+        -1.0, 1.0, -1.0,     1.0, 1.0,
+        1.0, 1.0, -1.0,      0.0, 1.0,
+        1.0, -1.0, -1.0,     0.0, 0.0,
     };
 
     static const unsigned int indices[] = {
@@ -85,14 +85,30 @@ int main()
         0, 1, 4,
         5, 1, 4,
 
+        /* top face */
         1, 5, 2,
         6, 5, 2,
 
+        /* bottom-face */
         0, 4, 3,
         7, 4, 3,
 
+        /* right-face */
         2, 3, 7,
         2, 6, 7
+    };
+
+    GLint glxAttriutes[] = {
+        GLX_RGBA,
+        GLX_DOUBLEBUFFER,
+        GLX_DEPTH_SIZE, 24,
+        GLX_STENCIL_SIZE, 8,
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_SAMPLE_BUFFERS, 0,
+        GLX_SAMPLES, 0,
+        None
     };
     // clang-format on
 
@@ -112,21 +128,6 @@ int main()
     scr  = DefaultScreen(dpy);
     root = XDefaultRootWindow(dpy);
 
-    // clang-format off
-    GLint glxAttriutes[] = {
-        GLX_RGBA,
-        GLX_DOUBLEBUFFER,
-        GLX_DEPTH_SIZE, 24,
-        GLX_STENCIL_SIZE, 8,
-        GLX_RED_SIZE, 8,
-        GLX_GREEN_SIZE, 8,
-        GLX_BLUE_SIZE, 8,
-        GLX_SAMPLE_BUFFERS, 0,
-        GLX_SAMPLES, 0,
-        None
-    };
-    // clang-format on
-
     vi = glXChooseVisual(dpy, scr, glxAttriutes);
     if (nullptr == vi)
     {
@@ -143,7 +144,11 @@ int main()
 
     /* create window */
     w = XCreateWindow(dpy, root, 0, 0, 1024, 768, 0, vi->depth, InputOutput, vi->visual, CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, &xattr);
-    XStoreName(dpy, w, "Rohit Nimkar: OpenGL demo with X11");
+    XStoreName(dpy, w, "Rohit Nimkar: Rotating 3d Cube");
+
+    /* register for window close event */
+    wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(dpy, w, &wm_delete_window, 1);
 
     /* create opengl context */
     ctxt = glXCreateContext(dpy, vi, nullptr, GL_TRUE);
@@ -166,23 +171,31 @@ int main()
     XFree(vi);
     vi = nullptr;
 
+    /* setup background */
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    /* initialize vertex buffer */
+    /* initialize vertex buffers */
     glGenVertexArrays(1, &vertexArrayBuffer);
     glGenBuffers(1, &vertexBuffer);
     glGenBuffers(1, &indexBuffer);
+    glGenTextures(1, &texture);
 
     glBindVertexArray(vertexArrayBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexBufferData), vertexBufferData, GL_STATIC_DRAW);
-
+    
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
 
-    // Create and compile our GLSL program from the shaders
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+
+    /* load and compile shaders */
     result = LoadShaders("vertex.glsl", "fragment.glsl", &program);
     if (GL_TRUE != result)
     {
@@ -190,9 +203,7 @@ int main()
         return -1;
     }
 
-    /* register for window close event */
-    wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(dpy, w, &wm_delete_window, 1);
+    /* make window visible */
     XMapWindow(dpy, w);
 
     /* generate transformation matrix */
@@ -205,7 +216,7 @@ int main()
     glm::mat4 Model      = glm::mat4(1.0f);
     glm::mat4 MVP        = Projection * View * Model;
 
-  /* load and create texture */
+    /* load and create texture */
     glBindTexture(GL_TEXTURE_2D, texture);
 
     /* set the texture wrapping parameters */
@@ -226,94 +237,87 @@ int main()
     else { std::cout << "Failed to load texture" << std::endl; }
     stbi_image_free(data);
 
-
     while (!globalAbortFlag)
     {
         XEvent evt;
         if (XPending(dpy))
         {
-        XNextEvent(dpy, &evt);
-        switch (evt.type)
-        {
-        case Expose:
-        {
-            if (!shouldDraw) shouldDraw = true;
-            break;
-        }
-        case ClientMessage:
-        {
-            if (evt.xclient.data.l[0] == wm_delete_window) { globalAbortFlag = true; }
-            break;
-        }
-        case KeyPress:
-        {
-            KeySym sym = XkbKeycodeToKeysym(dpy, evt.xkey.keycode, 0, 0);
-            if (XK_Escape == sym)
+            XNextEvent(dpy, &evt);
+            switch (evt.type)
             {
-                globalAbortFlag = true;
-                shouldDraw      = false;
+            case Expose:
+            {
+                if (!shouldDraw) shouldDraw = true;
+                break;
             }
-            break;
-        }
-        case MapNotify:
-        {
-            std::cout << "GL Vendor: " << glGetString(GL_VENDOR) << "\n";
-            std::cout << "GL Renderer: " << glGetString(GL_RENDERER) << "\n";
-            std::cout << "GL Version: " << glGetString(GL_VERSION) << "\n";
-            std::cout << "GL Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << "\n";
-            break;
-        }
-        default:
-        {
-            std::cout << "Default event: " << evt.type << std::endl;
-            break;
-        }
-        }
+            case ClientMessage:
+            {
+                if (evt.xclient.data.l[0] == wm_delete_window) { globalAbortFlag = true; }
+                break;
+            }
+            case KeyPress:
+            {
+                KeySym sym = XkbKeycodeToKeysym(dpy, evt.xkey.keycode, 0, 0);
+                if (XK_Escape == sym)
+                {
+                    globalAbortFlag = true;
+                    shouldDraw      = false;
+                }
+                break;
+            }
+            case MapNotify:
+            {
+                std::cout << "GL Vendor: " << glGetString(GL_VENDOR) << "\n";
+                std::cout << "GL Renderer: " << glGetString(GL_RENDERER) << "\n";
+                std::cout << "GL Version: " << glGetString(GL_VERSION) << "\n";
+                std::cout << "GL Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << "\n";
+                break;
+            }
+            default:
+            {
+                std::cout << "Default event: " << evt.type << std::endl;
+                break;
+            }
+            }
         }
 
         if (!shouldDraw) continue;
-            static GLint counter = 0;
-            static GLfloat zcounter  = 3;
-            static GLint ycounter = 3;
-            static GLfloat xcounter = 3;
-            counter++;
-            GLdouble theta = counter;
 
-            zcounter = 4*sin(theta/180);
-            xcounter = 4* cos(theta/180);
-            std::cout << "theta: " << theta << std::endl;
+        static GLfloat x, y = 3.0, z;
+        static GLdouble theta = 3;
+        theta += 0.005;
+        x    = 4 * sin(theta);
+        z    = 4 * cos(theta);
+        y    = 4 * cos(theta);
+        View = glm::lookAt(glm::vec3(x, y, z), // Camera is at (4,3,3), in World Space
+                                               //
+            glm::vec3(0, 0, 0),                // and looks at the origin
+            glm::vec3(0, 1, 0)                 // Head is up (set to 0,-1,0 to look upside-down)
+        );
+        MVP  = Projection * View * Model;
 
-            View = glm::lookAt(glm::vec3(xcounter, ycounter, zcounter), // Camera is at (4,3,3), in World Space
-                                                         //
-                glm::vec3(0, 0, 0),                      // and looks at the origin
-                glm::vec3(0, 1, 0)                       // Head is up (set to 0,-1,0 to look upside-down)
-            );
-            MVP  = Projection * View * Model;
-            std::cout << "incrementing counter " << zcounter << std::endl;
-
-        /* redraw frame */
-        std::cout << "redrawing frame" << std::endl;
+        View = glm::lookAt(glm::vec3(3, 3, 5), // Camera is at (4,3,3), in World Space
+            glm::vec3(0, 0, 0),                // and looks at the origin
+            glm::vec3(0, 1, 0)                 // Head is up (set to 0,-1,0 to look upside-down)
+        );
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(program);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        /* enable vertex buffer */
-        glBindVertexArray(vertexArrayBuffer);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)0);
+        glBindTexture(GL_TEXTURE_2D, texture);
 
-        /* enable color buffer */
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+        glBindVertexArray(vertexArrayBuffer);
 
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-        // glDrawArrays(GL_TRIANGLES, 0, 3);
         glXSwapBuffers(dpy, w);
     }
 
     /* resource cleanup */
+    glDeleteTextures(1, &texture);
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
     glDeleteBuffers(1, &indexBuffer);
     glDeleteBuffers(1, &vertexBuffer);
     glDeleteVertexArrays(1, &vertexArrayBuffer);
