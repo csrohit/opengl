@@ -26,6 +26,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
+#include "stb_image.h"
 
 #define GLX_MAJOR_MIN 1
 #define GLX_MINOR_MIN 2
@@ -47,20 +48,22 @@ int main()
     GLuint program               = 0U;
     GLuint vertexBuffer          = 0U;
     GLuint vertexArrayBuffer     = 0U;
+    GLuint texture               = 0U;
     GLuint indexBuffer           = 0U;
     GLboolean shouldDraw         = false;
+    GLint width                  = 0;
+    GLint height                 = 0;
+    GLint nrChannels             = 0;
 
     // clang-format off
     static const GLfloat vertexBufferData[] = {
-          // positions          // colors           // texture coords
-          0.5f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
-          0.5f,  -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-          -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
-          -0.5f, 0.5f,  0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f  // top left
+          -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
+          0.5f,  -0.5f,  0.0f, 1.0f, 0.0f,
+          0.0f,  0.5f, 0.0f, 0.5f, 1.0f, 
     };
     static const unsigned int indices[] = {
-          0, 1, 3, // first triangle
-          1, 2, 3  // second triangle
+          0, 1, 2, // first triangle
+          // 1, 2, 3  // second triangle
     };
     // clang-format on
 
@@ -139,8 +142,10 @@ int main()
     glGenVertexArrays(1, &vertexArrayBuffer);
     glGenBuffers(1, &vertexBuffer);
     glGenBuffers(1, &indexBuffer);
+    glGenTextures(1, &texture);
 
     glBindVertexArray(vertexArrayBuffer);
+
     /* initialize vertex buffer */
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexBufferData), vertexBufferData, GL_STATIC_DRAW);
@@ -148,14 +153,15 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)0);
+    /* vertex position attributes */
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)0);
     glEnableVertexAttribArray(0);
 
-    /* enable color buffer */
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+    /* vertex texture position */
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
 
-    // Create and compile our GLSL program from the shaders
+    /* Create and compile our GLSL program from the shaders */
     result = LoadShaders("vertex.glsl", "fragment.glsl", &program);
     if (GL_TRUE != result)
     {
@@ -167,6 +173,27 @@ int main()
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, w, &wm_delete_window, 1);
     XMapWindow(dpy, w);
+
+    /* load and create texture */
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    /* set the texture wrapping parameters */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    /* set texture filtering parameters */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    /* load image, create texture and generate mipmaps */
+    unsigned char* data = stbi_load("./wall.jpg", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else { std::cout << "Failed to load texture" << std::endl; }
+    stbi_image_free(data);
 
     while (!globalAbortFlag)
     {
@@ -211,12 +238,12 @@ int main()
         std::cout << "redrawing frame" << std::endl;
 
         glClear(GL_COLOR_BUFFER_BIT);
+        glBindTexture(GL_TEXTURE_2D, texture);
         glUseProgram(program);
-        
         /* enable vertex buffer */
         glBindVertexArray(vertexArrayBuffer);
-
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT , 0);
+        // bind Texture
+        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
         glXSwapBuffers(dpy, w);
     }
 
