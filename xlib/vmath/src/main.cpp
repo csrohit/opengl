@@ -31,6 +31,7 @@
 #include "shader.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include "vmath.h"
+#include "stb_image.h"
 
 #define GLX_MAJOR_MIN 1
 #define GLX_MINOR_MIN 2
@@ -45,6 +46,8 @@ struct Vertex
     float x;
     float y;
     float z;
+    float u;
+    float v;
 };
 int main()
 {
@@ -62,10 +65,14 @@ int main()
     GLint                result           = 0;
     GLuint               program          = 0U;
     GLuint               vertexBuffer     = 0U;
+    GLuint               texture          = 0U;
     GLuint               colorBuffer      = 0U;
     GLboolean            shouldDraw       = false;
+    GLint                width            = 0;
+    GLint                height           = 0;
+    GLint                nrChannels       = 0;
 
-    GLfloat*      vertices = NULL;
+    struct Vertex*      vertices = NULL;
     struct Header header;
     FILE*         pFile = fopen("./model.hex", "rb");
     if (NULL == pFile)
@@ -76,10 +83,13 @@ int main()
 
     fread(&header, sizeof(header), 1, pFile);
     printf("number of vertices: %d\n", header.nVertex);
-    vertices = (GLfloat*)malloc(sizeof(GLfloat) * header.nVertex * 3);
-    fread(vertices, sizeof(GLfloat), 3 * header.nVertex, pFile);
+    vertices = (struct Vertex*)malloc(sizeof(struct Vertex) * header.nVertex);
+    fread(vertices, sizeof(struct Vertex), header.nVertex, pFile);
 
-    for (uint32_t idx = 0; idx < header.nVertex; ++idx) { printf("[%f %f %f]\n", vertices[3 * idx], vertices[3 * idx + 1], vertices[3 * idx + 2]); }
+    for (uint32_t idx = 0; idx < header.nVertex; ++idx)
+    {
+        printf("[%f %f %f : %f %f]\n", vertices[idx].x, vertices[idx].y, vertices[idx].z, vertices[idx].u, vertices[idx].v);
+    }
 
     fclose(pFile);
 
@@ -241,12 +251,43 @@ int main()
     glGenBuffers(1, &vertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     // glBufferData(GL_ARRAY_BUFFER, sizeof(vertexBufferData), vertexBufferData, GL_STATIC_DRAW);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * header.nVertex * 3, vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(struct Vertex) * header.nVertex, vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct Vertex), (void*)0);
 
     /* initialize color buffer */
-    glGenBuffers(1, &colorBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(colorBufferData), colorBufferData, GL_STATIC_DRAW);
+    // glGenBuffers(1, &colorBuffer);
+    // glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(colorBufferData), colorBufferData, GL_STATIC_DRAW);
+
+    /* vertex texture position */
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(struct Vertex), (void*)(3 * sizeof(GLfloat)));
+
+    /* load and create texture */
+
+    /* set the texture wrapping parameters */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    /* set texture filtering parameters */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    /* load image, create texture and generate mipmaps */
+    unsigned char* data = stbi_load("./wall.jpg", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
 
     // Create and compile our GLSL program from the shaders
     result = LoadShaders("vertex.glsl", "fragment.glsl", &program);
@@ -264,7 +305,7 @@ int main()
     /* generate transformation matrix */
     GLuint      MatrixID   = glGetUniformLocation(program, "MVP");
     vmath::mat4 Projection = vmath::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
-    vmath::mat4 View       = vmath::lookat(vmath::vec3(1.0f, 3.0f, 2.0f), vmath::vec3(0.0f, 0.0f, 0.0f), vmath::vec3(0.0f, 1.0f, 0.0f));
+    vmath::mat4 View       = vmath::lookat(vmath::vec3(1.0f, 3.0f, 5.0f), vmath::vec3(0.0f, 0.0f, 0.0f), vmath::vec3(0.0f, 1.0f, 0.0f));
     // glm::mat4 View       = glm::lookAt(
     //     glm::vec3(4, 3, -3), // Camera is at (4,3,3), in World Space
     //     glm::vec3(0, 0, 0),  // and looks at the origin
@@ -317,7 +358,7 @@ int main()
                 }
                 default:
                 {
-                    std::cout << "Default event: " << evt.type << std::endl;
+                    // std::cout << "Default event: " << evt.type << std::endl;
                     break;
                 }
             }
@@ -327,7 +368,7 @@ int main()
             continue;
 
         /* redraw frame */
-        std::cout << "redrawing frame" << std::endl;
+        // std::cout << "redrawing frame" << std::endl;
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -339,18 +380,20 @@ int main()
         // }
         Model = vmath::translate(0.0f, 0.0f, 0.0f) * vmath::rotate(theta, 0.0f, 1.0f, 0.0f) * vmath::scale(1.0f, 1.0f, 1.0f);
         MVP   = Projection * View * Model;
+
         glUseProgram(program);
+        glEnableVertexAttribArray(1);
+        glBindTexture(GL_TEXTURE_2D, texture);
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
 
         /* enable vertex buffer */
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
         /* enable color buffer */
-        glEnableVertexAttribArray(1);
-        glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        // glEnableVertexAttribArray(1);
+        // glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+        // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
         glDrawArrays(GL_TRIANGLES, 0, header.nVertex);
         glXSwapBuffers(dpy, w);
