@@ -1,5 +1,6 @@
 ---
 AccessModifierOffset: '0'
+InsertNewlineAtEOF: true
 AlignAfterOpenBracket: DontAlign
 AlignConsecutiveAssignments: 'true'
 AlignConsecutiveMacros: 'true'
