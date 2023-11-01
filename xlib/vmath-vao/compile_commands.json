@@ -1,0 +1,30 @@
+[
+ {
+  "directory": "/home/csrohit/code/opengl/xlib/vmath",
+  "arguments": [
+   "g++",
+   "-DXK_MISCELLANY",
+   "-Iinclude",
+   "-g3",
+   "-o",
+   "build/src/main.o",
+   "-c",
+   "src/main.cpp"
+  ],
+  "file": "src/main.cpp"
+ },
+ {
+  "directory": "/home/csrohit/code/opengl/xlib/vmath",
+  "arguments": [
+   "g++",
+   "-DXK_MISCELLANY",
+   "-Iinclude",
+   "-g3",
+   "-o",
+   "build/src/shader.o",
+   "-c",
+   "src/shader.cpp"
+  ],
+  "file": "src/shader.cpp"
+ }
+]
