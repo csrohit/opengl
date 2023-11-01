@@ -3,7 +3,7 @@
  * @description Draw colored triangle using x11-opengl
  * @author      Rohit Nimkar
  * @version     1.0
- * @date        2023-07-01
+ * @date        2023-11-01
  * @copyright   Copyright 2023 Rohit Nimkar
  *
  * @attention
@@ -12,21 +12,23 @@
  *  opensource.org/licenses/BSD-3-Clause
  */
 
-#include "X11/XKBlib.h"
-#include "X11/Xlib.h"
-#include "cstdlib"
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <GL/glx.h>
+
 #include <X11/X.h>
+#include "X11/Xlib.h"
+#include "X11/XKBlib.h"
 #include <X11/Xutil.h>
 #include <X11/keysymdef.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+
 #include "stb_image.h"
 
 #define GLX_MAJOR_MIN 1
@@ -80,26 +82,35 @@ struct Vertex
     float v;
 };
 
+void printReport();
+void resize();
+
+
+
+/* global variables */
+/* Windowing related variables */
+Display* dpy       = nullptr; // connection to server
+Window   root      = 0UL;     // handle of root window [Desktop]
+Window   w         = 0UL;     // handle of current window
+int      scr       = 0;       // handle to DefaultScreen
+GLint    aVariable = 3;
+
 int main()
 {
-    /* Windowing related variables */
-    Display* dpy                 = nullptr; // connection to server
-    Window root                  = 0UL;     // handle of root window [Desktop]
-    Window w                     = 0UL;     // handle of current window
-    int scr                      = 0;       // handle to DefaultScreen
-    XVisualInfo* vi              = nullptr; // Pointer to current visual info
-    static Atom wm_delete_window = 0;       // atomic variable to detect close button click
-    XSetWindowAttributes xattr   = {};      // structure for windows attributes
-    bool globalAbortFlag         = false;
+    XVisualInfo*         vi               = nullptr; // Pointer to current visual info
+    XWindowAttributes    xgAttr           = {};
+    XSetWindowAttributes xsarr            = {}; // structure for windows attributes
+    static Atom          wm_delete_window = 0;  // atomic variable to detect close button click
+    bool                 globalAbortFlag  = false;
 
     /* OpenGl related variables */
-    GLint glxMinor  = 0;       // major version of glx library
-    GLint glxMajor  = 0;       // minor version of glx library
-    GLXContext ctxt = nullptr; // handle to OpenGL context
+    GLint      glxMinor = 0;       // major version of glx library
+    GLint      glxMajor = 0;       // minor version of glx library
+    GLXContext ctxt     = nullptr; // handle to OpenGL context
 
     /* Variables related to current program */
-    GLint result         = 0;     // variable to get value returned by APIS
-    GLuint texture       = 0U;    // handle to texture
+    GLint     result     = 0;     // variable to get value returned by APIS
+    GLuint    texture    = 0U;    // handle to texture
     GLboolean shouldDraw = false; // decide to render or not
 
     /* Variables related to texture */
@@ -108,7 +119,7 @@ int main()
     GLint nrChannels = 0; // number of color channels in image
 
     /* Variables related to model */
-    struct Header header    = {};   // header of model
+    struct Header  header   = {};   // header of model
     struct Vertex* vertices = NULL; // vertex data
 
     /* Load vertex data from file */
@@ -124,8 +135,7 @@ int main()
     vertices = (struct Vertex*)malloc(sizeof(struct Vertex) * header.nVertices);
     fread(vertices, sizeof(struct Vertex), header.nVertices, pFile);
 
-    for (uint32_t idx = 0; idx < header.nVertices; ++idx) { printf("[%f %f %f : %f %f]\n", vertices[idx].x, vertices[idx].y, vertices[idx].z, vertices[idx].u, vertices[idx].v);
-}
+    for (uint32_t idx = 0; idx < header.nVertices; ++idx) { printf("[%f %f %f : %f %f]\n", vertices[idx].x, vertices[idx].y, vertices[idx].z, vertices[idx].u, vertices[idx].v); }
 
     fclose(pFile);
 
@@ -168,14 +178,14 @@ int main()
     }
 
     /* set window attributes */
-    xattr.border_pixel      = BlackPixel(dpy, scr);
-    xattr.background_pixel  = WhitePixel(dpy, scr);
-    xattr.override_redirect = true;
-    xattr.colormap          = XCreateColormap(dpy, root, vi->visual, AllocNone);
-    xattr.event_mask        = ExposureMask | KeyPressMask | StructureNotifyMask;
+    xsarr.border_pixel      = BlackPixel(dpy, scr);
+    xsarr.background_pixel  = WhitePixel(dpy, scr);
+    xsarr.override_redirect = true;
+    xsarr.colormap          = XCreateColormap(dpy, root, vi->visual, AllocNone);
+    xsarr.event_mask        = ExposureMask | KeyPressMask | StructureNotifyMask;
 
     /* create window */
-    w = XCreateWindow(dpy, root, 0, 0, 1024, 768, 0, vi->depth, InputOutput, vi->visual, CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, &xattr);
+    w = XCreateWindow(dpy, root, 0, 0, 1024, 768, 0, vi->depth, InputOutput, vi->visual, CWBackPixel | CWColormap | CWBorderPixel | CWEventMask, &xsarr);
     XStoreName(dpy, w, "Rohit Nimkar: OpenGL demo with X11");
 
     /* create opengl context */
@@ -188,7 +198,7 @@ int main()
     {
         std::cerr << "Failed to initialize glew\n";
         XFree(vi);
-        XFreeColormap(dpy, xattr.colormap);
+        XFreeColormap(dpy, xsarr.colormap);
         glXDestroyContext(dpy, ctxt);
         XDestroyWindow(dpy, w);
         XCloseDisplay(dpy);
@@ -199,7 +209,17 @@ int main()
     XFree(vi);
     vi = nullptr;
 
+    std::cout << "GL Vendor: " << glGetString(GL_VENDOR) << "\n";
+    std::cout << "GL Renderer: " << glGetString(GL_RENDERER) << "\n";
+    std::cout << "GL Version: " << glGetString(GL_VERSION) << "\n";
+    std::cout << "GL Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << "\n";
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
+    resize();
+    /*---------------------------------------*/
 
     /* register for window close event */
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
@@ -249,49 +269,60 @@ int main()
         case KeyPress:
         {
             KeySym sym = XkbKeycodeToKeysym(dpy, evt.xkey.keycode, 0, 0);
-            if (XK_Escape == sym) { globalAbortFlag = true; }
+
+            switch (sym)
+            {
+            case XK_a:
+            {
+                if (evt.xkey.state & ShiftMask)
+                {
+                    /* handle A */
+                    aVariable--;
+                }
+                else { aVariable++; }
+                break;
+            }
+            case XK_r:
+            {
+                printReport();
+                break;
+            }
+            case XK_Escape:
+            {
+                globalAbortFlag = true;
+                break;
+            }
             break;
+            }
         }
         case MapNotify:
         {
-            std::cout << "GL Vendor: " << glGetString(GL_VENDOR) << "\n";
-            std::cout << "GL Renderer: " << glGetString(GL_RENDERER) << "\n";
-            std::cout << "GL Version: " << glGetString(GL_VERSION) << "\n";
-            std::cout << "GL Shading Language: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << "\n";
             break;
         }
         default:
         {
-            std::cout << "Default event: " << evt.type << std::endl;
+            // std::cout << "Default event: " << evt.type << std::endl;
             break;
         }
         }
         if (!shouldDraw) continue;
 
         /* redraw frame */
-        std::cout << "redrawing frame" << std::endl;
+        // std::cout << "redrawing frame" << std::endl;
 
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
+        glTranslatef(0.0f, -2.0f, -10.0f);
         glBindTexture(GL_TEXTURE_2D, texture);
         glBegin(GL_TRIANGLES);
 
-
-
-        for(uint32_t idx = 0U; idx < header.nVertices; ++idx)
+        for (uint32_t idx = 0U; idx < header.nVertices; ++idx)
         {
-            printf("drawing point\n");
             glTexCoord2f(vertices[idx].u, vertices[idx].v);
-            glVertex3f(vertices[idx].x/2.0f, vertices[idx].y/2.0f, vertices[idx].z/2.0f);
+            glVertex3f(vertices[idx].x / 2.0f, vertices[idx].y / 2.0f, vertices[idx].z / 2.0f);
         }
-        // glTexCoord2f(0.0f, 0.0f);
-        // glVertex2f(-1.0f, -1.0f);
-        // glTexCoord2f(1.0f, 0.0f);
-        // glVertex2f(1.0f, -1.0f);
-        // glTexCoord2f(0.5f, 1.0f);
-        // glVertex2f(0.0f, 1.0f);
         glEnd();
         glXSwapBuffers(dpy, w);
     }
@@ -299,9 +330,21 @@ int main()
     /* resource cleanup */
     free(vertices);
     glXDestroyContext(dpy, ctxt);
-    XFreeColormap(dpy, xattr.colormap);
+    XFreeColormap(dpy, xsarr.colormap);
     XDestroyWindow(dpy, w);
     XCloseDisplay(dpy);
     dpy = nullptr;
     return (0);
 }
+
+void resize()
+{
+    XWindowAttributes windowAttributes;
+    XGetWindowAttributes(dpy, w, &windowAttributes);
+    glMatrixMode(GL_PROJECTION);                                                        // for matrix calculation while resizing use GL_PROJECTION
+    glLoadIdentity();                                                                   // take identity matrix for beginning
+    glViewport(0, 0, (GLsizei)windowAttributes.width, (GLsizei)windowAttributes.width); // bioscope/Binoculor => focus on which are to be see in window => here we telling to focus on whole window
+    gluPerspective(45.0f, (GLfloat)windowAttributes.width / (GLfloat)windowAttributes.width, 0.1f, 100.0f);
+}
+
+void printReport() { printf("%-5s: %-4d\n", "A", aVariable); }

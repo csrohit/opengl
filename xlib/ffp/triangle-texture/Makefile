@@ -8,7 +8,7 @@ SRCS = $(shell find $(SRC_DIRS) -name '*.cpp')
 OBJS = $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
 
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
-LD_FLAGS  = -lX11 -lGL -lGLEW
+LD_FLAGS  = -lX11 -lGL -lGLEW -lGLU
 CPP_FLAGS = -DXK_MISCELLANY $(INC_FLAGS) -g3
 
 all: execute
