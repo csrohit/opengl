@@ -15,17 +15,14 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
+#include <GL/glx.h>
+
 #include <X11/X.h>
 #include <X11/Xutil.h>
-#include <cstddef>
-#include <cstdlib>
-#include <iostream>
 #include "X11/Xlib.h"
-#include "cstdlib"
-#include <GL/glx.h>
-#include <GL/gl.h>
 #include <X11/keysymdef.h>
 #include "X11/XKBlib.h"
+
 #include "shader.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <math.h>
@@ -291,10 +288,7 @@ int main()
         x    = 4 * sin(theta);
         z    = 4 * cos(theta);
         y    = 4 * cos(theta);
-        View = glm::lookAt(glm::vec3(x, y, z),
-            glm::vec3(0, 0, 0),
-            glm::vec3(0, 1, 0)
-        );
+        View = glm::lookAt(glm::vec3(x, y, z), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
         MVP  = Projection * View * Model;
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

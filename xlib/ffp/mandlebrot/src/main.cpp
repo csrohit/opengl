@@ -50,7 +50,7 @@ void calculateMandleBrot()
     {
         for (uint32_t jdx = 0; jdx < gheight; jdx++)
         {
-            double n = (mandle(idx, jdx));
+            double n = (julia(idx, jdx));
             if (n < MAX_ITERATIONS - 1)
             {
                 n                = (n / MAX_ITERATIONS) * 360.0f;
@@ -115,6 +115,7 @@ void renderScene()
     {
         for (float idy = -5.0f; idy < 5.0f; idy += 2.0f / (float)gheight)
         {
+            // double n = (mandle(idx, idy));
             double n = (julia(idx, idy));
             if (n < MAX_ITERATIONS - 1)
             {

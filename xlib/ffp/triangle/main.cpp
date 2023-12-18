@@ -23,6 +23,15 @@ void createWindow() {
     static int visualAttributes[] = {
         GLX_RGBA,
         GLX_DOUBLEBUFFER,
+        GLX_RGBA,
+        GLX_DOUBLEBUFFER,
+        GLX_DEPTH_SIZE, 24,
+        GLX_STENCIL_SIZE, 8,
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_SAMPLE_BUFFERS, 0,
+        GLX_SAMPLES, 0,
         None
     };
 
@@ -44,13 +53,13 @@ void createWindow() {
 
     glContext = glXCreateContext(display, visual, nullptr, GL_TRUE);
     glXMakeCurrent(display, window, glContext);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 }
 
 void renderScene() {
     glClear(GL_COLOR_BUFFER_BIT);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
+    glRotatef(0.5f, 0.0f, 0.0f, 1.0f);
     glBegin(GL_TRIANGLES);
     glColor3f(1.0, 0.0, 0.0);  // Red
     glVertex2f(0.0, 1.0);
@@ -68,6 +77,9 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         XEvent event;
+        if(XPending(display))
+        {
+
         XNextEvent(display, &event);
 
         if (event.type == Expose) {
@@ -77,6 +89,8 @@ int main(int argc, char *argv[]) {
         if (event.type == KeyPress) {
             break;
         }
+        }
+            renderScene();
     }
 
     glXMakeCurrent(display, None, nullptr);
