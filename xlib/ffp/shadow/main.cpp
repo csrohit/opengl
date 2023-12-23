@@ -10,14 +10,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
-#include "math3d.h"
 #include "stb_image.h"
 #include <math.h>
 
 #define TRUE  1
 #define FALSE 0
 // Transformation matrix to project Shadows
-M3DMatrix44f   shadowMat;
 bool           bFullscreen;
 static GLfloat xRot = 0.0f;
 static GLfloat yRot = 0.0f;
@@ -26,7 +24,7 @@ static GLfloat yRot = 0.0f;
 GLfloat lightAmbient[]  = {0.3f, 0.3f, 0.3f, 1.0f};
 GLfloat lightDiffuse[]  = {0.7f, 0.7f, 0.7f, 1.0f};
 GLfloat lightSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
-GLfloat lightPosition[] = {-5.0f, 5.0f, -5.0f, 0.0f};
+GLfloat lightPosition[] = {-7.0f, 5.0f, -5.0f, 0.0f};
 
 /* material properties */
 GLfloat materialSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -259,11 +257,10 @@ static void initialize()
     pQuadric = gluNewQuadric();
     XWindowAttributes xattr;
     XGetWindowAttributes(dpy, w, &xattr);
-    // Any three points on ground (CCW order)
-    M3DVector3f points[3] = {{-30.0f, 0.0f, -20.0f}, {-30.0f, 0.0f, 20.0f}, {40.0f, 0.0f, 20.0f}};
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
+    glClearDepth(1.0f);      // this bit will be set in depth buffer after calling glClear()
     glEnable(GL_DEPTH_TEST); // Hidden surface removal
     glFrontFace(GL_CCW);     // Counterclockwise Winding
     glEnable(GL_CULL_FACE);  // Do not calculate inside of JET
@@ -288,52 +285,11 @@ static void initialize()
     glMaterialfv(GL_FRONT, GL_SPECULAR, materialSpecular);
     glMateriali(GL_FRONT, GL_SHININESS, 128);
 
-    // get plane eqation from three points on ground
-    M3DVector4f vPlaneEquation;
-    m3dGetPlaneEquation(vPlaneEquation, points[0], points[1], points[2]);
-
     setShadowMatrix(g_shadowMatrix, lightPosition, plane);
 
-    // calculate projection matrix to draw shadows on ground
-    m3dMakePlanarShadowMatrix(shadowMat, vPlaneEquation, lightPosition);
-
-    printf("Shadow matrix:\n");
-    printf("Plane equation: %.2f %.2f %.2f %.2f\n", vPlaneEquation[0], vPlaneEquation[1], vPlaneEquation[2], vPlaneEquation[3]);
-    printf("%.2f %.2f %.2f %.2f\n", shadowMat[0], shadowMat[2], shadowMat[2], shadowMat[3]);
-    printf("%.2f %.2f %.2f %.2f\n", shadowMat[4], shadowMat[5], shadowMat[6], shadowMat[7]);
-    printf("%.2f %.2f %.2f %.2f\n", shadowMat[8], shadowMat[9], shadowMat[10], shadowMat[11]);
-    printf("%.2f %.2f %.2f %.2f\n", shadowMat[12], shadowMat[13], shadowMat[14], shadowMat[15]);
-
-    printf("My Shadow matrix:\n");
-    printf("Plane equation: %.2f %.2f %.2f %.2f\n", plane[0], plane[1], plane[2], plane[3]);
-    printf("%.2f %.2f %.2f %.2f\n", g_shadowMatrix[0], g_shadowMatrix[2], g_shadowMatrix[2], g_shadowMatrix[3]);
-    printf("%.2f %.2f %.2f %.2f\n", g_shadowMatrix[4], g_shadowMatrix[5], g_shadowMatrix[6], g_shadowMatrix[7]);
-    printf("%.2f %.2f %.2f %.2f\n", g_shadowMatrix[8], g_shadowMatrix[9], g_shadowMatrix[10], g_shadowMatrix[11]);
-    printf("%.2f %.2f %.2f %.2f\n", g_shadowMatrix[12], g_shadowMatrix[13], g_shadowMatrix[14], g_shadowMatrix[15]);
-
-    /* My shadow matrix */
     // rescale normals to unit length
-    glEnable(GL_NORMALIZE);
 
-    return;
-    glClearColor(0.0f, 0.0f, 0.2f, 1.0f);
-
-    glClearDepth(1.0f);      // this bit will be set in depth buffer after calling glClear()
-    glEnable(GL_DEPTH_TEST); // enable depth test
-    glDepthFunc(GL_LEQUAL);  // Which function to use for testing
-
-    glEnable(GL_CULL_FACE);
-
-    /* per light initialization */
-    glEnable(GL_LIGHT0);
-    // glEnable(GL_LIGHTING);
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
-    glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
-
-    pQuadric = gluNewQuadric();
-    cube     = glGenLists(2);
+    cube = glGenLists(2);
     glNewList(cube, GL_COMPILE);
     glTranslatef(0.0f, 1.0f, 0.0f);
     glMaterialfv(GL_FRONT, GL_DIFFUSE, materialRed);
@@ -361,7 +317,6 @@ static void initialize()
     // Set the clipping plane equation
     resize(xattr.width, xattr.height);
     // toggleFullscreen(dpy, w);
-    setShadowMatrix(g_shadowMatrix, lightPosition, plane);
 }
 
 void uninitialize()
@@ -374,12 +329,47 @@ float angle = 0.0f;
 
 static void display()
 {
-    void RenderScene();
-    RenderScene();
-}
+    // Clear color and depth buffers
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    gluLookAt(0.0f, yPos, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    // Draw the ground
+    // Darker green for background to give illusion of depth
+    glCallList(cube + 1);
+    // save the matrix state and do the rotation
+    glPushMatrix();
+    // Draw jet at new orientation, put light in correct position
+    // before rotating the JET
+    glEnable(GL_LIGHTING);
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+    glTranslatef(0.0f, 2.0f, 0.0f);
+    doughnut(0.25f, 0.75f, 50, 50);
+    // restore original matrix state
+    glPopMatrix();
 
-void drawScene()
-{
+    // For drawing shadow
+    // disable ligting and save the projection state
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+
+    glPushMatrix();
+    glColor3fv(colorWhite);
+    // multiply by shadow projection matrix
+    glMultMatrixf(g_shadowMatrix);
+    glTranslatef(0.0f, 2.0f, 0.0f);
+    doughnut(0.25f, 0.75f, 50, 50);
+    glPopMatrix();
+
+    // Draw the light source
+    glPushMatrix();
+    glTranslatef(lightPosition[0], lightPosition[1], lightPosition[2]);
+    glColor3ub((GLubyte)255, (GLubyte)255, (GLubyte)0);
+    gluSphere(pQuadric, 0.2f, 10, 10);
+    glPopMatrix();
+
+    // restore lighting state
+    glEnable(GL_DEPTH_TEST);
 }
 
 static void update()
@@ -514,7 +504,7 @@ void DrawGround(void)
 {
     GLfloat fExtent = 4.0f;
     GLfloat fStep   = 1.0f;
-    GLfloat y       = -0.4f;
+    GLfloat y       = 0.0f;
     GLfloat iStrip, iRun;
 
     for (iStrip = -fExtent; iStrip <= fExtent; iStrip += fStep)
@@ -560,58 +550,4 @@ void setShadowMatrix(GLfloat *destMat, float *lightPos, float *plane)
     destMat[7]  = 0.0f - lightPos[3] * plane[1];
     destMat[11] = 0.0f - lightPos[3] * plane[2];
     destMat[15] = dot - lightPos[3] * plane[3];
-}
-
-void RenderScene(void)
-{
-    // Clear color and depth buffers
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // Draw the ground
-    // Darker green for background to give illusion of depth
-    glBegin(GL_QUADS);
-    glColor3ub((GLubyte)0, (GLubyte)32, (GLubyte)0);
-    glVertex3f(10.0f, -0.0f, -10.0f);
-    glVertex3f(-10.0f, -0.0f, -10.0f);
-    glColor3ub((GLubyte)0, (GLubyte)255, (GLubyte)0);
-    glVertex3f(-10.0f, -0.0f, 10.0f);
-    glVertex3f(10.0f, -0.0f, 10.0f);
-    glEnd();
-
-    // save the matrix state and do the rotation
-    glPushMatrix();
-    // Draw jet at new orientation, put light in correct position
-    // before rotating the JET
-    glEnable(GL_LIGHTING);
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-    glTranslatef(0.0f, 2.0f, 0.0f);
-    doughnut(0.25f, 0.75f, 50, 50);
-    // restore original matrix state
-    glPopMatrix();
-
-    // For drawing shadow
-    // disable ligting and save the projection state
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_LIGHTING);
-
-    glPushMatrix();
-    // multiply by shadow projection matrix
-    // glMultMatrixf((GLfloat *)shadowMat);
-    glMultMatrixf(g_shadowMatrix);
-    // now rotate the JET around in new flattened state
-    glTranslatef(0.0f, 2.0f, 0.0f);
-    // pass true to indicate drawing shadow
-    doughnut(0.25f, 0.75f, 50, 50);
-    // restore projection to normal
-    glPopMatrix();
-
-    // Draw the light source
-    glPushMatrix();
-    glTranslatef(lightPosition[0], lightPosition[1], lightPosition[2]);
-    glColor3ub((GLubyte)255, (GLubyte)255, (GLubyte)0);
-    gluSphere(pQuadric, 0.2f, 10, 10);
-    glPopMatrix();
-
-    // restore lighting state
-    glEnable(GL_DEPTH_TEST);
 }
