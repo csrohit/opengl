@@ -21,11 +21,9 @@ static void resize(GLsizei width, GLsizei height);
 static void toggleFullscreen(Display *display, Window window);
 void        DrawGround(void);
 void        drawCube();
-void        DrawCube();
-void        DrawSurface();
-void        loadTexture(const char *pFilename, uint32_t *pTextureID);
 
-void setShadowMatrix(GLfloat *result, float *lightPost, float *plane);
+static void doughnut(GLfloat r, GLfloat R, GLint nsides, GLint rings);
+void        setShadowMatrix(GLfloat *result, float *lightPost, float *plane);
 
 /* Windowing related variables */
 Display   *dpy          = nullptr; // connection to server
@@ -41,10 +39,10 @@ bool       shouldDraw   = false;   // should scene be rendered
 GLUquadric *pQuadric;
 GLfloat     colorWhite[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 GLfloat     colorBlack[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-GLfloat     yPos          = 0.1f;
+GLfloat     yPos          = 2.1f;
 
 /* Light properties */
-GLfloat lightPosition[4]       = {5.0f, 5.0f, 1.0f, 1.0f};
+GLfloat lightPosition[4]       = {-100.0f, 10.0f, 50.0f, 1.0f};
 GLfloat lightPositionMirror[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 GLfloat lightAmbient[4]        = {0.25, 0.25, 0.25, 1.0f};
 GLfloat lightDiffuse[4]        = {0.0f, 1.0f, 1.0f, 1.0f};
@@ -253,10 +251,8 @@ static void initialize()
 
     cube = glGenLists(2);
     glNewList(cube, GL_COMPILE);
-    glTranslatef(0.0f, 1.0f, 0.0f);
-    glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, materialDiffuse);
-    drawCube();
+    glTranslatef(0.0f, 1.5f, 0.0f);
+    doughnut(0.5f, 1.0f, 50, 50);
     glEndList();
 
     /* ground */
@@ -267,6 +263,11 @@ static void initialize()
     glPopAttrib();
     glEndList();
 
+    // use color tracking using glColor
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, colorWhite);
+    glMateriali(GL_FRONT, GL_SHININESS, 128);
     // Set the clipping plane equation
     resize(xattr.width, xattr.height);
     // toggleFullscreen(dpy, w);
@@ -285,58 +286,21 @@ static void display()
     glLoadIdentity();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     gluLookAt(0.0, yPos, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-    // glRotatef(angle, 0.0f, 1.0f, 0.0f);
+    /*--- Render here ---*/
 
-    /* generate stencil */
-    glDisable(GL_DEPTH_TEST);
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-    glEnable(GL_STENCIL_TEST);
-    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-    glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
-    glCallList(cube + 1);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
-
-    /* render reflection where stensil is 1 */
-    glStencilFunc(GL_EQUAL, 1, 0xffffffff);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-    /* draw reflected cube */
-    glPushMatrix();
-    glFrontFace(GL_CW);
-    glScalef(1.0f, -1.0f, 1.0f);
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-    glCallList(cube);
-    glFrontFace(GL_CCW);
-    glPopMatrix();
+    glColor3ub((GLubyte)240, (GLubyte)232, (GLubyte)211);
+    DrawGround();
 
-    glPushMatrix();
-    glPushAttrib(GL_LIGHTING_BIT);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_LIGHTING);
-    glEnable(GL_BLEND);
-
-    // glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-    glMultMatrixf(g_shadowMatrix);
-    glCallList(cube);
-
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glPopAttrib();
-    glPopMatrix();
-    glDisable(GL_STENCIL_TEST);
-
-    /* draw actual object */
     glPushMatrix();
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+    glMultMatrixf(g_shadowMatrix);
+    glColor3fv(colorBlack);
     glCallList(cube);
     glPopMatrix();
-
-    /* draw actual surface */
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glCallList(cube + 1);
-    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
 }
 
 void drawScene()
@@ -351,8 +315,8 @@ static void update()
     {
         angle -= 360.0f;
     }
-    lightPosition[0] = 5 * cosf(angle);
-    lightPosition[2] = 5 * sinf(angle);
+    lightPosition[0] = 4 * cosf(angle);
+    lightPosition[2] = 4 * sinf(angle);
     setShadowMatrix(g_shadowMatrix, lightPosition, plane);
 }
 
@@ -453,8 +417,26 @@ static void toggleFullscreen(Display *display, Window window)
 
     XSendEvent(display, DefaultRootWindow(display), False, SubstructureRedirectMask | SubstructureNotifyMask, &evt);
 }
-
 void DrawGround(void)
+{
+    GLfloat fExtent = 20.0f;
+    GLfloat fStep   = 1.0f;
+    GLfloat y       = -0.4f;
+    GLfloat iStrip, iRun;
+
+    for (iStrip = -fExtent; iStrip <= fExtent; iStrip += fStep)
+    {
+        glBegin(GL_TRIANGLE_STRIP);
+        glNormal3f(0.0f, -0.4f, 0.0f);
+        for (iRun = fExtent; iRun >= -fExtent; iRun -= fStep)
+        {
+            glVertex3f(iStrip, y, iRun);
+            glVertex3f(iStrip + fStep, y, iRun);
+        }
+        glEnd();
+    }
+}
+void aDrawGround(void)
 {
     GLfloat fExtent = 5.0f;
     GLfloat fStep   = 0.5f;
