@@ -343,6 +343,11 @@ static void display()
     gluLookAt(xPos, yPos, zPos, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
     /*--- Render here ---*/
 
+    if(true == gbStencilEnabled)
+    {
+
+
+    }
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
     glColor3ub((GLubyte)240, (GLubyte)232, (GLubyte)211);
     glPushMatrix();
@@ -350,7 +355,6 @@ static void display()
     DrawGround();
     glPopMatrix();
 
-    glDisable(GL_DEPTH_TEST);
     if (true == gbShadowEnabled)
     {
         glDisable(GL_LIGHTING);
@@ -369,6 +373,7 @@ static void display()
         glPopMatrix();
         glEnable(GL_LIGHTING);
     }
+    glDisable(GL_DEPTH_TEST);
     /* draw reflection */
     if (true == gbReflectionEnabled)
     {
