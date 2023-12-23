@@ -40,12 +40,14 @@ GLUquadric *pQuadric;
 GLfloat     colorWhite[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 GLfloat     colorBlack[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 GLfloat     yPos          = 2.1f;
+GLfloat     xPos          = -2.0f;
+GLfloat     zPos          = 7.0f;
 
 /* Light properties */
-GLfloat lightPosition[4]       = {-100.0f, 10.0f, 50.0f, 1.0f};
+GLfloat lightPosition[4]       = {-5.0f, 10.0f, -5.0f, 1.0f};
 GLfloat lightPositionMirror[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 GLfloat lightAmbient[4]        = {0.25, 0.25, 0.25, 1.0f};
-GLfloat lightDiffuse[4]        = {0.0f, 1.0f, 1.0f, 1.0f};
+GLfloat lightDiffuse[4]        = {1.0f, 1.0f, 1.0f, 1.0f};
 GLfloat lightSpecular[4]       = {1.0f, 1.0f, 1.0f, 1.0f};
 
 GLfloat materialBlue[4]   = {0.0f, 0.0f, 1.0f, 1.0f};
@@ -53,6 +55,7 @@ GLfloat materialGreen[4]  = {0.0f, 1.0f, 0.0f, 1.0f};
 GLfloat materialYellow[4] = {1.0f, 1.0f, 0.0f, 1.0f};
 GLfloat materialCyan[4]   = {0.0f, 1.0f, 1.0f, 1.0f};
 
+float   plane[4]     = {0.0, 1.0, 0.0, 0.0};
 GLfloat fFogColor[4] = {0.847656f, 0.84375f, 0.83984f, 1.0f};
 
 float g_rotationAngle = 0.0;
@@ -62,6 +65,16 @@ GLfloat g_shadowMatrix[16];
 
 /* Material Diffuse */
 GLfloat materialDiffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+/*--- boolean control flags ---*/
+bool gbStencilEnabled    = false;
+bool gbLightingEnabled   = false;
+bool gbLight0Enabled     = false;
+bool gbReflectionEnabled = false;
+bool gbShadowEnabled     = false;
+
+float floorScale = 1.0f;
+
 /*-----*/
 int main(int argc, char *argv[])
 {
@@ -183,9 +196,42 @@ int main(int argc, char *argv[])
                             bLight = !bLight;
                             break;
                         }
+                        case XK_s:
+                        {
+                            gbStencilEnabled = !gbStencilEnabled;
+                            break;
+                        }
+
+                        case XK_p:
+                        {
+                            gbShadowEnabled = !gbShadowEnabled;
+                            break;
+                        }
+
+                        case XK_k:
+                        {
+                            gbLight0Enabled = !gbLight0Enabled;
+                            break;
+                        }
+
+                        case XK_i:
+                        {
+                            if (event.xkey.state & ShiftMask)
+                            {
+                                /* handle A */
+                                floorScale += 0.1;
+                            }
+                            else
+                            {
+                                floorScale -= 0.1;
+                            }
+
+                            break;
+                        }
 
                         case XK_r:
                         {
+                            gbReflectionEnabled = !gbReflectionEnabled;
                             break;
                         }
                         case XK_Escape:
@@ -226,14 +272,14 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-GLuint cube;
+GLuint torus;
 
 static void initialize()
 {
     XWindowAttributes xattr;
     XGetWindowAttributes(dpy, w, &xattr);
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.2f, 1.0f);
 
     glClearDepth(1.0f);      // this bit will be set in depth buffer after calling glClear()
     glEnable(GL_DEPTH_TEST); // enable depth test
@@ -248,19 +294,25 @@ static void initialize()
     glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
     glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
-
-    cube = glGenLists(2);
-    glNewList(cube, GL_COMPILE);
+    pQuadric = gluNewQuadric();
+    torus    = glGenLists(2);
+    glNewList(torus, GL_COMPILE);
     glTranslatef(0.0f, 1.5f, 0.0f);
     doughnut(0.5f, 1.0f, 50, 50);
     glEndList();
 
     /* ground */
-    glNewList(cube + 1, GL_COMPILE);
+    glNewList(torus + 1, GL_COMPILE);
     glPushAttrib(GL_LIGHTING_BIT);
     glDisable(GL_LIGHTING);
     DrawGround();
     glPopAttrib();
+    glEndList();
+
+    /* Sphere */
+    glNewList(torus + 2, GL_COMPILE);
+    glTranslatef(0.0f, 0.0f, 1.0f);
+    gluSphere(pQuadric, 0.2f, 20, 20);
     glEndList();
 
     // use color tracking using glColor
@@ -271,53 +323,108 @@ static void initialize()
     // Set the clipping plane equation
     resize(xattr.width, xattr.height);
     // toggleFullscreen(dpy, w);
+    setShadowMatrix(g_shadowMatrix, lightPosition, plane);
 }
 
 void uninitialize()
 {
-    glDeleteLists(cube, 2);
+    glDeleteLists(torus, 3);
+    gluDeleteQuadric(pQuadric);
 }
 
-float angle = 0.0f;
+float angle         = 0.0f;
+float rotationAngle = 0.0f;
 
 static void display()
 {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    gluLookAt(0.0, yPos, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+    gluLookAt(xPos, yPos, zPos, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
     /*--- Render here ---*/
 
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
     glColor3ub((GLubyte)240, (GLubyte)232, (GLubyte)211);
+    glPushMatrix();
+    glScalef(floorScale, 1.0f, floorScale);
     DrawGround();
+    glPopMatrix();
 
     glDisable(GL_DEPTH_TEST);
-    glDisable(GL_LIGHTING);
-    glPushMatrix();
-    glMultMatrixf(g_shadowMatrix);
-    glColor3fv(colorBlack);
-    glCallList(cube);
-    glPopMatrix();
+    if (true == gbShadowEnabled)
+    {
+        glDisable(GL_LIGHTING);
+        glPushMatrix();
+        glMultMatrixf(g_shadowMatrix);
+        glColor3fv(colorBlack);
+
+        glCallList(torus);
+
+        glPushMatrix();
+        glTranslatef(1.0f, 0.0f, 0.0f);
+        glRotatef(rotationAngle, 0.0f, 1.0f, 0.0f);
+        glCallList(torus + 2);
+
+        glPopMatrix();
+        glPopMatrix();
+        glEnable(GL_LIGHTING);
+    }
+    /* draw reflection */
+    if (true == gbReflectionEnabled)
+    {
+        glPushMatrix();
+        glScalef(1.0f, -1.0f, 1.0f);
+        glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+        glFrontFace(GL_CW);
+        glColor3ub((GLubyte)235, (GLubyte)172, (GLubyte)77);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, colorWhite);
+        glCallList(torus);
+
+        glPushMatrix();
+        glColor3ub((GLubyte)25, (GLubyte)172, (GLubyte)177);
+        glTranslatef(1.0f, 0.0f, 0.0f);
+        glRotatef(rotationAngle, 0.0f, 1.0f, 0.0f);
+        glCallList(torus + 2);
+        glPopMatrix();
+        glPopMatrix();
+        glFrontFace(GL_CCW);
+    }
+
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_LIGHTING);
+    // Torus alone will be specular
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+    glColor3ub((GLubyte)235, (GLubyte)172, (GLubyte)77);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, colorWhite);
+    glCallList(torus);
+
+    glPushMatrix();
+    glColor3ub((GLubyte)25, (GLubyte)172, (GLubyte)177);
+    glTranslatef(1.0f, 0.0f, 0.0f);
+    glRotatef(rotationAngle, 0.0f, 1.0f, 0.0f);
+    glCallList(torus + 2);
+    glPopMatrix();
 }
 
 void drawScene()
 {
 }
 
-float       plane[4] = {0.0, 1.0, 0.0, 0.0};
 static void update()
 {
-    angle += 0.01;
-    if (angle >= 360.0f)
+    rotationAngle += 0.5;
+    if (rotationAngle >= 360.0f)
     {
-        angle -= 360.0f;
+        rotationAngle -= 360.0f;
     }
-    lightPosition[0] = 4 * cosf(angle);
-    lightPosition[2] = 4 * sinf(angle);
-    setShadowMatrix(g_shadowMatrix, lightPosition, plane);
+    // angle += 0.01;
+    // if (angle >= 360.0f)
+    // {
+    //     angle -= 360.0f;
+    // }
+    // xPos = 8*cosf(-angle);
+    // zPos = 8*sinf(angle);
+    // lightPosition[0] = 4 * cosf(angle);
+    // lightPosition[2] = 4 * sinf(angle);
 }
 
 static void resize(GLsizei width, GLsizei height)
@@ -419,7 +526,7 @@ static void toggleFullscreen(Display *display, Window window)
 }
 void DrawGround(void)
 {
-    GLfloat fExtent = 20.0f;
+    GLfloat fExtent = 4.0f;
     GLfloat fStep   = 1.0f;
     GLfloat y       = -0.4f;
     GLfloat iStrip, iRun;
