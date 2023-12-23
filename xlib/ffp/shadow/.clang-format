@@ -1,5 +1,4 @@
 ---
-Language: Cpp
 TabWidth: '4'
 IndentWidth: '4'
 ContinuationIndentWidth: '4'
@@ -13,5 +12,8 @@ AlignEscapedNewlines: Left
 ColumnLimit: '200'
 IndentCaseLabels: true
 AllowShortFunctionsOnASingleLine: None
+EmptyLineBeforeAccessModifier: Always
+EmptyLineAfterAccessModifier: Always
+MaxEmptyLinesToKeep: 1
 ...
 
