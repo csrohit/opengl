@@ -17,14 +17,12 @@
 #define FALSE 0
 // Transformation matrix to project Shadows
 bool           bFullscreen;
-static GLfloat xRot = 0.0f;
-static GLfloat yRot = 0.0f;
 
 /* light properties */
 GLfloat lightAmbient[]  = {0.3f, 0.3f, 0.3f, 1.0f};
-GLfloat lightDiffuse[]  = {0.7f, 0.7f, 0.7f, 1.0f};
+GLfloat lightDiffuse[]  = {1.0f, 1.0f, 1.0f, 1.0f};
 GLfloat lightSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
-GLfloat lightPosition[] = {-7.0f, 5.0f, -5.0f, 0.0f};
+GLfloat lightPosition[] = {-1.0f, 5.0f, 2.0f, 1.0f};
 
 /* material properties */
 GLfloat materialSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -37,8 +35,9 @@ static void update();
 static void resize(GLsizei width, GLsizei height);
 static void toggleFullscreen(Display *display, Window window);
 void        DrawGround(void);
-void        drawCube();
 
+void        aDrawGround(void);
+void        drawScene(bool bShadow);
 static void doughnut(GLfloat r, GLfloat R, GLint nsides, GLint rings);
 void        setShadowMatrix(GLfloat *result, float *lightPost, float *plane);
 
@@ -66,13 +65,9 @@ GLfloat materialBlue[4]   = {0.0f, 0.0f, 1.0f, 1.0f};
 GLfloat materialGreen[4]  = {0.0f, 1.0f, 0.0f, 1.0f};
 GLfloat materialYellow[4] = {1.0f, 1.0f, 0.0f, 1.0f};
 GLfloat materialCyan[4]   = {0.0f, 1.0f, 1.0f, 1.0f};
+GLfloat floorDiffuse[4]   = {0.0f, 1.0f, 1.0f, 0.5f};
 
-GLfloat fFogColor[4] = {0.847656f, 0.84375f, 0.83984f, 1.0f};
-
-float g_rotationAngle = 0.0;
-
-GLfloat g_lightPos[4] = {5.0, 5.0, 5.0, 1.0};
-GLfloat g_shadowMatrix[16];
+GLfloat shadowMatrix[16];
 
 /* Material Diffuse */
 GLfloat materialDiffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -127,6 +122,7 @@ int main(int argc, char *argv[])
     /* register for window close event */
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, w, &wm_delete_window, 1);
+    printf("delete atom %lu\n", wm_delete_window);
 
     XStoreName(dpy, w, "Rohit Nimkar: Doughnut");
     XMapWindow(dpy, w);
@@ -250,7 +246,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-GLuint cube;
+GLuint torus;
 
 static void initialize()
 {
@@ -265,63 +261,42 @@ static void initialize()
     glFrontFace(GL_CCW);     // Counterclockwise Winding
     glEnable(GL_CULL_FACE);  // Do not calculate inside of JET
 
-    // Lighting
     glEnable(GL_LIGHTING);
 
-    // Setup light 0
     glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
     glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
     glEnable(GL_LIGHT0);
 
-    // Material
-    // Enable color tracking
-    glEnable(GL_COLOR_MATERIAL);
+    setShadowMatrix(shadowMatrix, lightPosition, plane);
 
-    // front material ambient and diffuse
-    glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
-
-    glMaterialfv(GL_FRONT, GL_SPECULAR, materialSpecular);
-    glMateriali(GL_FRONT, GL_SHININESS, 128);
-
-    setShadowMatrix(g_shadowMatrix, lightPosition, plane);
-
-    // rescale normals to unit length
-
-    cube = glGenLists(2);
-    glNewList(cube, GL_COMPILE);
+    torus = glGenLists(2);
+    glNewList(torus, GL_COMPILE);
     glTranslatef(0.0f, 1.0f, 0.0f);
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, materialRed);
-    doughnut(0.5f, 1.0f, 50, 50);
+    doughnut(0.25f, 0.75f, 50, 50);
     glEndList();
 
     /* ground */
-    glNewList(cube + 1, GL_COMPILE);
+    glNewList(torus + 1, GL_COMPILE);
     glPushAttrib(GL_LIGHTING_BIT);
     glDisable(GL_LIGHTING);
-    DrawGround();
+    aDrawGround();
     glPopAttrib();
     glEndList();
 
     /* Sphere */
-    glNewList(cube + 2, GL_COMPILE);
+    glNewList(torus + 2, GL_COMPILE);
     gluSphere(pQuadric, 0.2f, 20, 20);
     glEndList();
 
-    // use color tracking using glColor
-    glEnable(GL_COLOR_MATERIAL);
-    glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
-    glMaterialfv(GL_FRONT, GL_SPECULAR, colorWhite);
-    glMateriali(GL_FRONT, GL_SHININESS, 128);
-    // Set the clipping plane equation
     resize(xattr.width, xattr.height);
     // toggleFullscreen(dpy, w);
 }
 
 void uninitialize()
 {
-    glDeleteLists(cube, 3);
+    glDeleteLists(torus, 3);
     gluDeleteQuadric(pQuadric);
 }
 
@@ -329,47 +304,20 @@ float angle = 0.0f;
 
 static void display()
 {
-    // Clear color and depth buffers
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     gluLookAt(0.0f, yPos, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
-    // Draw the ground
-    // Darker green for background to give illusion of depth
-    glCallList(cube + 1);
-    // save the matrix state and do the rotation
-    glPushMatrix();
-    // Draw jet at new orientation, put light in correct position
-    // before rotating the JET
-    glEnable(GL_LIGHTING);
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-    glTranslatef(0.0f, 2.0f, 0.0f);
-    doughnut(0.25f, 0.75f, 50, 50);
-    // restore original matrix state
-    glPopMatrix();
 
-    // For drawing shadow
-    // disable ligting and save the projection state
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_LIGHTING);
+    /* Draw here */
 
-    glPushMatrix();
-    glColor3fv(colorWhite);
-    // multiply by shadow projection matrix
-    glMultMatrixf(g_shadowMatrix);
-    glTranslatef(0.0f, 2.0f, 0.0f);
-    doughnut(0.25f, 0.75f, 50, 50);
-    glPopMatrix();
 
-    // Draw the light source
-    glPushMatrix();
-    glTranslatef(lightPosition[0], lightPosition[1], lightPosition[2]);
-    glColor3ub((GLubyte)255, (GLubyte)255, (GLubyte)0);
-    gluSphere(pQuadric, 0.2f, 10, 10);
-    glPopMatrix();
 
-    // restore lighting state
-    glEnable(GL_DEPTH_TEST);
+}
+
+void drawScene( bool bShadow)
+{
+    glCallList(torus);
 }
 
 static void update()
@@ -396,18 +344,6 @@ static void resize(GLsizei width, GLsizei height)
     aspectRatio = (GLfloat)width / (GLfloat)height;
 
     gluPerspective(60.0f, aspectRatio, 1.0f, 500.0f);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    glTranslatef(0.0f, -4.0f, -10.0f);
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-
-    return;
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(45.0f, (GLfloat)width / (GLfloat)height, 0.1f, 100.0f);
-    glViewport(0, 0, width, height);
 }
 
 static void quadloop(GLfloat r, GLfloat R, GLint nsides, GLfloat sideDelta, GLfloat cosTheta, GLfloat sinTheta, GLfloat cosTheta1, GLfloat sinTheta1)
@@ -550,4 +486,33 @@ void setShadowMatrix(GLfloat *destMat, float *lightPos, float *plane)
     destMat[7]  = 0.0f - lightPos[3] * plane[1];
     destMat[11] = 0.0f - lightPos[3] * plane[2];
     destMat[15] = dot - lightPos[3] * plane[3];
+}
+void aDrawGround(void)
+{
+    GLfloat fExtent = 5.0f;
+    GLfloat fStep   = 0.5f;
+    GLfloat y       = 0.0f;
+    GLint   iBounce = 0;
+    GLfloat iStrip, iRun, fColor;
+
+    glShadeModel(GL_FLAT);
+    for (iStrip = -fExtent; iStrip <= fExtent; iStrip += fStep)
+    {
+        glBegin(GL_TRIANGLE_STRIP);
+        for (iRun = fExtent; iRun >= -fExtent; iRun -= fStep)
+        {
+            if ((iBounce % 2) == 0)
+                fColor = 1.0f;
+            else
+                fColor = 0.0f;
+
+            glColor4f(fColor, fColor, fColor, 0.5f);
+            glVertex3f(iStrip, y, iRun);
+            glVertex3f(iStrip + fStep, y, iRun);
+
+            iBounce++;
+        }
+        glEnd();
+    }
+    glShadeModel(GL_SMOOTH);
 }
