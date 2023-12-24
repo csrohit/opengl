@@ -281,7 +281,7 @@ static void initialize()
     glNewList(torus + 1, GL_COMPILE);
     glPushAttrib(GL_LIGHTING_BIT);
     glDisable(GL_LIGHTING);
-    aDrawGround();
+    DrawGround();
     glPopAttrib();
     glEndList();
 
@@ -300,6 +300,7 @@ void uninitialize()
     gluDeleteQuadric(pQuadric);
 }
 
+
 float angle = 0.0f;
 
 static void display()
@@ -311,12 +312,17 @@ static void display()
 
     /* Draw here */
 
-
+    /* Original scene */
+    drawScene(false);
 
 }
 
 void drawScene( bool bShadow)
 {
+    if(false == bShadow)
+    {
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, materialRed);
+    }
     glCallList(torus);
 }
 
