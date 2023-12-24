@@ -16,13 +16,13 @@
 #define TRUE  1
 #define FALSE 0
 // Transformation matrix to project Shadows
-bool           bFullscreen;
+bool bFullscreen;
 
 /* light properties */
 GLfloat lightAmbient[]  = {0.3f, 0.3f, 0.3f, 1.0f};
 GLfloat lightDiffuse[]  = {1.0f, 1.0f, 1.0f, 1.0f};
 GLfloat lightSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
-GLfloat lightPosition[] = {-1.0f, 5.0f, 2.0f, 1.0f};
+GLfloat lightPosition[] = {-1.0f, 5.0f, -2.0f, 1.0f};
 
 /* material properties */
 GLfloat materialSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -34,7 +34,7 @@ static void display();
 static void update();
 static void resize(GLsizei width, GLsizei height);
 static void toggleFullscreen(Display *display, Window window);
-void        DrawGround(void);
+void        drawSurface(void);
 
 void        aDrawGround(void);
 void        drawScene(bool bShadow);
@@ -56,6 +56,8 @@ GLUquadric *pQuadric;
 GLfloat     colorWhite[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 GLfloat     colorBlack[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 GLfloat     yPos          = 2.1f;
+GLfloat     temp          = 0.0f;
+bool        bDebugToggle  = false;
 
 /* Light properties */
 GLfloat lightPositionMirror[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -65,7 +67,7 @@ GLfloat materialBlue[4]   = {0.0f, 0.0f, 1.0f, 1.0f};
 GLfloat materialGreen[4]  = {0.0f, 1.0f, 0.0f, 1.0f};
 GLfloat materialYellow[4] = {1.0f, 1.0f, 0.0f, 1.0f};
 GLfloat materialCyan[4]   = {0.0f, 1.0f, 1.0f, 1.0f};
-GLfloat floorDiffuse[4]   = {0.0f, 1.0f, 1.0f, 0.5f};
+GLfloat floorDiffuse[4]   = {1.0f, 1.0f, 1.0f, 0.5f};
 
 GLfloat shadowMatrix[16];
 
@@ -124,7 +126,7 @@ int main(int argc, char *argv[])
     XSetWMProtocols(dpy, w, &wm_delete_window, 1);
     printf("delete atom %lu\n", wm_delete_window);
 
-    XStoreName(dpy, w, "Rohit Nimkar: Doughnut");
+    XStoreName(dpy, w, "Rohit Nimkar: Reflection");
     XMapWindow(dpy, w);
 
     glCtxt = glXCreateContext(dpy, visual, nullptr, GL_TRUE);
@@ -200,14 +202,27 @@ int main(int argc, char *argv[])
                             if (event.xkey.state & ShiftMask)
                             {
                                 /* handle A */
-                                yPos += 0.1;
+                                temp += 0.1;
                             }
                             else
                             {
-                                yPos -= 0.1;
+                                temp -= 0.1;
                             }
                             break;
                         }
+                        case XK_t:
+                        {
+                            bDebugToggle = !bDebugToggle;
+                            break;
+                        }
+
+                        case XK_p:
+                        {
+                            void printReport();
+                            printReport();
+                            break;
+                        }
+
                         case XK_Escape:
                         {
                             gbAbortFlag = true;
@@ -245,7 +260,6 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
 GLuint torus;
 
 static void initialize()
@@ -269,8 +283,6 @@ static void initialize()
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
     glEnable(GL_LIGHT0);
 
-    setShadowMatrix(shadowMatrix, lightPosition, plane);
-
     torus = glGenLists(2);
     glNewList(torus, GL_COMPILE);
     glTranslatef(0.0f, 1.0f, 0.0f);
@@ -279,16 +291,20 @@ static void initialize()
 
     /* ground */
     glNewList(torus + 1, GL_COMPILE);
-    glPushAttrib(GL_LIGHTING_BIT);
-    glDisable(GL_LIGHTING);
-    DrawGround();
-    glPopAttrib();
+    drawSurface();
     glEndList();
 
     /* Sphere */
     glNewList(torus + 2, GL_COMPILE);
+    glTranslatef(0.0f, 0.0f, 1.0f);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, colorWhite);
     gluSphere(pQuadric, 0.2f, 20, 20);
     glEndList();
+
+    printf("Renderer: %s\n", glGetString(GL_RENDERER));
+    printf("Version: %s\n", glGetString(GL_VERSION));
+    printf("GLSL Version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    printf("Vendor: %s\n", glGetString(GL_VENDOR));
 
     resize(xattr.width, xattr.height);
     // toggleFullscreen(dpy, w);
@@ -300,8 +316,8 @@ void uninitialize()
     gluDeleteQuadric(pQuadric);
 }
 
-
-float angle = 0.0f;
+float lightAngle  = 0.0f;
+float sphereAngle = 0.0f;
 
 static void display()
 {
@@ -310,29 +326,121 @@ static void display()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     gluLookAt(0.0f, yPos, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
+    glDisable(GL_DEPTH_TEST);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+    glEnable(GL_STENCIL_TEST);
+    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+    glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
+    glCallList(torus + 1);
+
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+    /* Now, only render where stencil is set to 1. */
+
+    glStencilFunc(GL_EQUAL, 1, 0xffffffff);
+    /* draw if ==1 */
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
     /* Draw here */
+    glPushMatrix();
+    glScalef(1.0f, -1.0f, 1.0f);
+    glFrontFace(GL_CW);
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+    drawScene(false);
+    glFrontFace(GL_CCW);
+    glPopMatrix();
+
+    // draw the shadow
+    glPushMatrix();
+    // draw the shadow as black, blended with the surface, with no lighting, and not
+    // preforming the depth test
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    // make sure that we don't draw at any raster position more than once
+    glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+    glColor4f(0.0, 0.0, 0.0, 1.5f);
+
+    // project the cube through the shadow matrix
+    glMultMatrixf(shadowMatrix);
+    drawScene(true);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
+    glDisable(GL_STENCIL_TEST);
+
+    /* draw ground */
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glCallList(torus + 1);
+    glDisable(GL_BLEND);
 
     /* Original scene */
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+    glPushMatrix();
     drawScene(false);
+    glPopMatrix();
 
+    return;
 }
 
-void drawScene( bool bShadow)
+void drawScene(bool bShadow)
 {
-    if(false == bShadow)
+    glMaterialf(GL_FRONT, GL_SHININESS, 128);
+    if (false == bShadow)
     {
         glMaterialfv(GL_FRONT, GL_DIFFUSE, materialRed);
     }
+    glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
     glCallList(torus);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, colorBlack);
+    glPushMatrix();
+    glMaterialfv(GL_FRONT, GL_EMISSION, materialGreen);
+    glTranslatef(1.0f, 0.0f, 0.0f);
+    glRotatef(sphereAngle, 0.0f, 1.0f, 0.0f);
+    glCallList(torus + 2);
+    glPopMatrix();
+return;
+    glPushMatrix();
+    glMaterialfv(GL_FRONT, GL_EMISSION, materialYellow);
+    glTranslatef(0.0f, 1.0f, 0.0f);
+    glRotatef(-sphereAngle + 90.0f, 1.0f, 0.0f, 0.0f);
+    glCallList(torus + 2);
+    glPopMatrix();
+
+    glPushMatrix();
+    glMaterialfv(GL_FRONT, GL_EMISSION, materialCyan);
+    glTranslatef(0.0f, -1.0f, 0.0f);
+    glRotatef(sphereAngle + 180.0f, 1.0f, 0.0f, 0.0f);
+    glCallList(torus + 2);
+    glPopMatrix();
+
+    glPushMatrix();
+    glMaterialfv(GL_FRONT, GL_EMISSION, materialBlue);
+    glTranslatef(-1.0f, 0.0f, 0.0f);
+    glRotatef(-sphereAngle + 270.0f, 0.0f, 1.0f, 0.0f);
+    glCallList(torus + 2);
+    glPopMatrix();
+    glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
 }
 
 static void update()
 {
-    angle += 0.01;
-    if (angle >= 360.0f)
+    int r = 5;
+    lightAngle += 0.01;
+    if (lightAngle >= 360.0f)
     {
-        angle -= 360.0f;
+        lightAngle -= 360.0f;
     }
+    sphereAngle += 1;
+    if (sphereAngle >= 360.0f)
+    {
+        sphereAngle -= 360.0f;
+    }
+    lightPosition[0] = r * sinf(lightAngle);
+    lightPosition[2] = r * cosf(lightAngle);
+    setShadowMatrix(shadowMatrix, lightPosition, plane);
 }
 
 static void resize(GLsizei width, GLsizei height)
@@ -442,12 +550,16 @@ static void toggleFullscreen(Display *display, Window window)
     XSendEvent(display, DefaultRootWindow(display), False, SubstructureRedirectMask | SubstructureNotifyMask, &evt);
 }
 
-void DrawGround(void)
+void drawSurface(void)
 {
     GLfloat fExtent = 4.0f;
     GLfloat fStep   = 1.0f;
     GLfloat y       = 0.0f;
     GLfloat iStrip, iRun;
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, floorDiffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, materialSpecular);
+    glMaterialf(GL_FRONT, GL_SHININESS, 128);
+    glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
 
     for (iStrip = -fExtent; iStrip <= fExtent; iStrip += fStep)
     {
@@ -521,4 +633,9 @@ void aDrawGround(void)
         glEnd();
     }
     glShadeModel(GL_SMOOTH);
+}
+
+void printReport()
+{
+    printf("temp: %.2f\n", temp);
 }
