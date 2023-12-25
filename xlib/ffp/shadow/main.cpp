@@ -1,31 +1,33 @@
+/**
+ * @file      main.cpp
+ * @brief     Shadow and Reflection
+ * @author    Rohit Nimkar
+ * @version   1.0
+ * @date      2023-12-24
+ * @copyright Copyright 2023 Rohit Nimkar
+ *
+ * @attention
+ *  Use of this source code is governed by a BSD-style
+ *  license that can be found in the LICENSE file or at
+ *  opensource.org/licenses/BSD-3-Clause
+ */
+
+/* System headers */
+#define _USE_MATH_DEFINES
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+/* Xlib headers */
+#include <X11/XKBlib.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+
+/* OpenGL Headers */
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/glut.h>
 #include <GL/glx.h>
-#include <X11/XKBlib.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <iostream>
-#include <memory.h> // for memset
-#include <stdio.h>
-#include <stdlib.h>
-#define _USE_MATH_DEFINES
-#include "stb_image.h"
-#include <math.h>
-
-#define TRUE  1
-#define FALSE 0
-// Transformation matrix to project Shadows
-bool bFullscreen;
-
-/* light properties */
-GLfloat lightAmbient[]  = {0.3f, 0.3f, 0.3f, 1.0f};
-GLfloat lightDiffuse[]  = {1.0f, 1.0f, 1.0f, 1.0f};
-GLfloat lightSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
-GLfloat lightPosition[] = {-1.0f, 5.0f, -2.0f, 1.0f};
-
-/* material properties */
-GLfloat materialSpecular[] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 /* function declaration */
 static void initialize();
@@ -34,18 +36,15 @@ static void display();
 static void update();
 static void resize(GLsizei width, GLsizei height);
 static void toggleFullscreen(Display *display, Window window);
-void        drawSurface(void);
-
-void        aDrawGround(void);
-void        drawScene(bool bShadow);
+static void drawSurface(void);
+static void drawScene(bool bShadow);
 static void doughnut(GLfloat r, GLfloat R, GLint nsides, GLint rings);
-void        setShadowMatrix(GLfloat *result, float *lightPost, float *plane);
+static void setShadowMatrix(GLfloat *result, float *lightPost, double *plane);
 
 /* Windowing related variables */
 Display   *dpy          = nullptr; // connection to server
-Window     w            = 0UL;     // handle of current window
+Window     window       = 0UL;     // handle of current window
 bool       gbAbortFlag  = false;   // Global abort flag
-GLint      result       = 0;       // variable to get value returned by APIS
 GLXContext glCtxt       = nullptr; // handle to OpenGL context
 XRectangle rect         = {0};     // window dimentions rectangle
 bool       gbFullscreen = false;   // should display in fullscreen mode
@@ -53,27 +52,46 @@ bool       shouldDraw   = false;   // should scene be rendered
 
 /*--- Program specific variables ---*/
 GLUquadric *pQuadric;
-GLfloat     colorWhite[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-GLfloat     colorBlack[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-GLfloat     yPos          = 2.1f;
-GLfloat     temp          = 0.0f;
-bool        bDebugToggle  = false;
+GLfloat     xPos = 0.0f;
+GLfloat     yPos = 2.1f;
+GLfloat     zPos = 8.0f;
 
-/* Light properties */
-GLfloat lightPositionMirror[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+/*--- Debug variables --- */
+GLfloat temp         = 0.0f;
+bool    bDebugToggle = false;
 
-GLfloat materialRed[4]    = {1.0f, 0.0f, 0.0f, 1.0f};
-GLfloat materialBlue[4]   = {0.0f, 0.0f, 1.0f, 1.0f};
-GLfloat materialGreen[4]  = {0.0f, 1.0f, 0.0f, 1.0f};
-GLfloat materialYellow[4] = {1.0f, 1.0f, 0.0f, 1.0f};
-GLfloat materialCyan[4]   = {0.0f, 1.0f, 1.0f, 1.0f};
-GLfloat floorDiffuse[4]   = {1.0f, 1.0f, 1.0f, 0.5f};
+/*--- State of effects and objects in the scene ---*/
+bool isReflectionEnabled = false;
+bool isClippingEnabled   = false;
+bool isShadowEnabled     = false;
+bool isStencilEnabled    = false;
+bool isTorusVisible      = false;
+bool isGreenVisible      = false;
+bool isYellowVisible     = false;
+bool isCyanVisible       = false;
+bool isBlueVisible       = false;
+
+/* Equation of ground plane [used for shadow & clipping planes] */
+double planeEquation[4] = {0.0, 1.00, 0.0, 0.0};
+
+/* light properties */
+GLfloat lightAmbient[4]  = {0.3f, 0.3f, 0.3f, 1.0f};
+GLfloat lightDiffuse[4]  = {1.0f, 1.0f, 1.0f, 1.0f};
+GLfloat lightSpecular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+GLfloat lightPosition[4] = {-4.0f, 3.3f, -2.0f, 1.0f};
+GLfloat colorWhite[4]    = {1.0f, 1.0f, 1.0f, 1.0f};
+GLfloat colorBlack[4]    = {0.0f, 0.0f, 0.0f, 1.0f};
+
+/* material properties */
+GLfloat materialSpecular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+GLfloat materialRed[4]      = {1.0f, 0.0f, 0.0f, 1.0f};
+GLfloat materialBlue[4]     = {0.0f, 0.0f, 1.0f, 1.0f};
+GLfloat materialGreen[4]    = {0.0f, 1.0f, 0.0f, 1.0f};
+GLfloat materialYellow[4]   = {1.0f, 1.0f, 0.0f, 1.0f};
+GLfloat materialCyan[4]     = {0.0f, 1.0f, 1.0f, 1.0f};
+GLfloat floorDiffuse[4]     = {1.0f, 1.0f, 1.0f, 0.5f};
 
 GLfloat shadowMatrix[16];
-
-/* Material Diffuse */
-GLfloat materialDiffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-float   plane[4]           = {0.0, 1.0, 0.0, 0.0};
 /*-----*/
 int main(int argc, char *argv[])
 {
@@ -120,17 +138,17 @@ int main(int argc, char *argv[])
     xattr.colormap          = XCreateColormap(dpy, root, visual->visual, AllocNone);
     xattr.event_mask        = ExposureMask | KeyPressMask | StructureNotifyMask;
 
-    w = XCreateWindow(dpy, root, 0, 0, 1600, 1200, 0, visual->depth, InputOutput, visual->visual, CWColormap | CWEventMask, &xattr);
+    window = XCreateWindow(dpy, root, 0, 0, 1600, 1200, 0, visual->depth, InputOutput, visual->visual, CWColormap | CWEventMask, &xattr);
     /* register for window close event */
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(dpy, w, &wm_delete_window, 1);
+    XSetWMProtocols(dpy, window, &wm_delete_window, 1);
     printf("delete atom %lu\n", wm_delete_window);
 
-    XStoreName(dpy, w, "Rohit Nimkar: Reflection");
-    XMapWindow(dpy, w);
+    XStoreName(dpy, window, "Rohit Nimkar: Reflection");
+    XMapWindow(dpy, window);
 
     glCtxt = glXCreateContext(dpy, visual, nullptr, GL_TRUE);
-    glXMakeCurrent(dpy, w, glCtxt);
+    glXMakeCurrent(dpy, window, glCtxt);
     initialize();
 
     shouldDraw = false;
@@ -154,7 +172,6 @@ int main(int argc, char *argv[])
                     {
                         gbAbortFlag = true;
                     }
-
                     break;
                 }
                 case KeyPress:
@@ -163,11 +180,23 @@ int main(int argc, char *argv[])
 
                     switch (sym)
                     {
-                        case XK_a:
+                        case XK_x:
                         {
                             if (event.xkey.state & ShiftMask)
                             {
-                                /* handle A */
+                                /* handle Caps */
+                                xPos += 0.1;
+                            }
+                            else
+                            {
+                                xPos -= 0.1;
+                            }
+                            break;
+                        }
+                        case XK_y:
+                        {
+                            if (event.xkey.state & ShiftMask)
+                            {
                                 yPos += 0.1;
                             }
                             else
@@ -176,9 +205,21 @@ int main(int argc, char *argv[])
                             }
                             break;
                         }
+                        case XK_z:
+                        {
+                            if (event.xkey.state & ShiftMask)
+                            {
+                                zPos += 0.1;
+                            }
+                            else
+                            {
+                                zPos -= 0.1;
+                            }
+                            break;
+                        }
                         case XK_f:
                         {
-                            toggleFullscreen(dpy, w);
+                            toggleFullscreen(dpy, window);
                             gbFullscreen = !gbFullscreen;
                             break;
                         }
@@ -197,17 +238,25 @@ int main(int argc, char *argv[])
                             break;
                         }
 
+                        case XK_m:
+                        {
+                            isStencilEnabled = !isStencilEnabled;
+                            break;
+                        }
+
+                        case XK_c:
+                        {
+                            isClippingEnabled = !isClippingEnabled;
+                            break;
+                        }
+                        case XK_s:
+                        {
+                            isShadowEnabled = !isShadowEnabled;
+                            break;
+                        }
                         case XK_r:
                         {
-                            if (event.xkey.state & ShiftMask)
-                            {
-                                /* handle A */
-                                temp += 0.1;
-                            }
-                            else
-                            {
-                                temp -= 0.1;
-                            }
+                            isReflectionEnabled = !isReflectionEnabled;
                             break;
                         }
                         case XK_t:
@@ -215,17 +264,40 @@ int main(int argc, char *argv[])
                             bDebugToggle = !bDebugToggle;
                             break;
                         }
-
                         case XK_p:
                         {
                             void printReport();
                             printReport();
                             break;
                         }
-
                         case XK_Escape:
                         {
                             gbAbortFlag = true;
+                            break;
+                        }
+                        case '0':
+                        {
+                            isTorusVisible = !isTorusVisible;
+                            break;
+                        }
+                        case '1':
+                        {
+                            isGreenVisible = !isGreenVisible;
+                            break;
+                        }
+                        case '2':
+                        {
+                            isYellowVisible = !isYellowVisible;
+                            break;
+                        }
+                        case '3':
+                        {
+                            isBlueVisible = !isBlueVisible;
+                            break;
+                        }
+                        case '4':
+                        {
+                            isCyanVisible = !isCyanVisible;
                             break;
                         }
                     }
@@ -249,16 +321,16 @@ int main(int argc, char *argv[])
         update();
         display();
 
-        glXSwapBuffers(dpy, w);
+        glXSwapBuffers(dpy, window);
     }
 
     uninitialize();
     glXMakeCurrent(dpy, None, nullptr);
     glXDestroyContext(dpy, glCtxt);
-    XDestroyWindow(dpy, w);
+    XDestroyWindow(dpy, window);
     XCloseDisplay(dpy);
 
-    return 0;
+    return (0);
 }
 GLuint torus;
 
@@ -266,16 +338,14 @@ static void initialize()
 {
     pQuadric = gluNewQuadric();
     XWindowAttributes xattr;
-    XGetWindowAttributes(dpy, w, &xattr);
+    XGetWindowAttributes(dpy, window, &xattr);
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.2f, 1.0f);
 
     glClearDepth(1.0f);      // this bit will be set in depth buffer after calling glClear()
     glEnable(GL_DEPTH_TEST); // Hidden surface removal
     glFrontFace(GL_CCW);     // Counterclockwise Winding
     glEnable(GL_CULL_FACE);  // Do not calculate inside of JET
-
-    glEnable(GL_LIGHTING);
 
     glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
@@ -285,12 +355,16 @@ static void initialize()
 
     torus = glGenLists(2);
     glNewList(torus, GL_COMPILE);
-    glTranslatef(0.0f, 1.0f, 0.0f);
     doughnut(0.25f, 0.75f, 50, 50);
     glEndList();
 
     /* ground */
     glNewList(torus + 1, GL_COMPILE);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, floorDiffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, materialSpecular);
+    glMaterialf(GL_FRONT, GL_SHININESS, 128);
+    glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
+
     drawSurface();
     glEndList();
 
@@ -298,7 +372,7 @@ static void initialize()
     glNewList(torus + 2, GL_COMPILE);
     glTranslatef(0.0f, 0.0f, 1.0f);
     glMaterialfv(GL_FRONT, GL_DIFFUSE, colorWhite);
-    gluSphere(pQuadric, 0.2f, 20, 20);
+    gluSphere(pQuadric, 0.2f, 50, 50);
     glEndList();
 
     printf("Renderer: %s\n", glGetString(GL_RENDERER));
@@ -308,6 +382,21 @@ static void initialize()
 
     resize(xattr.width, xattr.height);
     // toggleFullscreen(dpy, w);
+}
+
+inline void enableClipping()
+{
+    if (true == isClippingEnabled)
+    {
+        glEnable(GL_CLIP_PLANE0);
+        glClipPlane(GL_CLIP_PLANE0, planeEquation);
+    }
+}
+
+inline void disableClipping()
+{
+    if (true == isClippingEnabled)
+        glDisable(GL_CLIP_PLANE0);
 }
 
 void uninitialize()
@@ -324,123 +413,161 @@ static void display()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    gluLookAt(0.0f, yPos, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    gluLookAt(xPos, yPos, zPos, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
-    glDisable(GL_DEPTH_TEST);
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    /* create stencil */
+    if (true == isStencilEnabled)
+    {
+        glDisable(GL_DEPTH_TEST);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-    glEnable(GL_STENCIL_TEST);
-    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-    glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
-    glCallList(torus + 1);
+        glEnable(GL_STENCIL_TEST);
+        glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+        glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
+        glCallList(torus + 1);
 
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
-    /* Now, only render where stencil is set to 1. */
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glEnable(GL_DEPTH_TEST);
+        glStencilFunc(GL_EQUAL, 1, 0xffffffff);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    }
 
-    glStencilFunc(GL_EQUAL, 1, 0xffffffff);
-    /* draw if ==1 */
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    /* draw reflection */
+    if (true == isReflectionEnabled)
+    {
+        glPushMatrix();
+        glScalef(1.0f, -1.0f, 1.0f);
+        enableClipping();
+        glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+        glFrontFace(GL_CW);
+        drawScene(false);
+        glFrontFace(GL_CCW);
+        disableClipping();
+        glPopMatrix();
+    }
 
-    /* Draw here */
-    glPushMatrix();
-    glScalef(1.0f, -1.0f, 1.0f);
-    glFrontFace(GL_CW);
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-    drawScene(false);
-    glFrontFace(GL_CCW);
-    glPopMatrix();
-
-    // draw the shadow
-    glPushMatrix();
-    // draw the shadow as black, blended with the surface, with no lighting, and not
-    // preforming the depth test
-    glDisable(GL_LIGHTING);
-    glDisable(GL_DEPTH_TEST);
-    // make sure that we don't draw at any raster position more than once
-    glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
-    glColor4f(0.0, 0.0, 0.0, 1.5f);
-
-    // project the cube through the shadow matrix
-    glMultMatrixf(shadowMatrix);
-    drawScene(true);
-
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_LIGHTING);
-    glPopMatrix();
-    glDisable(GL_STENCIL_TEST);
-
-    /* draw ground */
+    /* draw real ground */
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glCallList(torus + 1);
     glDisable(GL_BLEND);
 
-    /* Original scene */
+    if (true == isStencilEnabled)
+    {
+        glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+    }
+
+    if (true == isShadowEnabled)
+    {
+        /* draw shadow */
+        glPushMatrix();
+        glPushAttrib(GL_LIGHTING_BIT | GL_DEPTH_BUFFER_BIT);
+        glDisable(GL_LIGHTING);
+        glDisable(GL_DEPTH_TEST);
+        // glStencilMask(0x00);
+        glColor4f(0.0, 0.0, 0.0, 1.0f);
+        glMultMatrixf(shadowMatrix);
+        drawScene(true);
+        glPopAttrib();
+        glPopMatrix();
+    }
+
+    if (true == isStencilEnabled)
+    {
+        glDisable(GL_STENCIL_TEST);
+    }
+
+    /* draw original scene */
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
     glPushMatrix();
+    enableClipping();
     drawScene(false);
+    disableClipping();
     glPopMatrix();
 
+    /* ground */
+    glFrontFace(GL_CW);
+    glCallList(torus + 1);
+    glFrontFace(GL_CCW);
     return;
 }
 
 void drawScene(bool bShadow)
 {
+    glTranslatef(0.0f, 1.0f, 0.0f);
     glMaterialf(GL_FRONT, GL_SHININESS, 128);
-    if (false == bShadow)
+    if (true == isTorusVisible)
     {
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, materialRed);
+        if (false == bShadow)
+        {
+            glMaterialfv(GL_FRONT, GL_DIFFUSE, materialRed);
+        }
+        glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
+        glCallList(torus);
+    }
+
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, colorBlack);
+    if (true == isYellowVisible)
+    {
+        glPushMatrix();
+        glMaterialfv(GL_FRONT, GL_EMISSION, materialYellow);
+        glTranslatef(0.0f, 1.0f, 0.0f);
+        glRotatef(-sphereAngle + 90.0f, 1.0f, 0.0f, 0.0f);
+        glCallList(torus + 2);
+        glPopMatrix();
+    }
+
+    if (true == isGreenVisible)
+    {
+        glPushMatrix();
+        glMaterialfv(GL_FRONT, GL_EMISSION, materialGreen);
+        glTranslatef(1.0f, 0.0f, 0.0f);
+        glRotatef(sphereAngle, 0.0f, 1.0f, 0.0f);
+        glCallList(torus + 2);
+        glPopMatrix();
+    }
+
+    if (true == isCyanVisible)
+    {
+        glPushMatrix();
+        glMaterialfv(GL_FRONT, GL_EMISSION, materialCyan);
+        glTranslatef(0.0f, -1.0f, 0.0f);
+        glRotatef(sphereAngle + 180.0f, 1.0f, 0.0f, 0.0f);
+        glCallList(torus + 2);
+        glPopMatrix();
+    }
+
+    if (true == isBlueVisible)
+    {
+        glPushMatrix();
+        glMaterialfv(GL_FRONT, GL_EMISSION, materialBlue);
+        glTranslatef(-1.0f, 0.0f, 0.0f);
+        glRotatef(-sphereAngle + 270.0f, 0.0f, 1.0f, 0.0f);
+        glCallList(torus + 2);
+        glPopMatrix();
     }
     glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
-    glCallList(torus);
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, colorBlack);
-    glPushMatrix();
-    glMaterialfv(GL_FRONT, GL_EMISSION, materialGreen);
-    glTranslatef(1.0f, 0.0f, 0.0f);
-    glRotatef(sphereAngle, 0.0f, 1.0f, 0.0f);
-    glCallList(torus + 2);
-    glPopMatrix();
-return;
-    glPushMatrix();
-    glMaterialfv(GL_FRONT, GL_EMISSION, materialYellow);
-    glTranslatef(0.0f, 1.0f, 0.0f);
-    glRotatef(-sphereAngle + 90.0f, 1.0f, 0.0f, 0.0f);
-    glCallList(torus + 2);
-    glPopMatrix();
-
-    glPushMatrix();
-    glMaterialfv(GL_FRONT, GL_EMISSION, materialCyan);
-    glTranslatef(0.0f, -1.0f, 0.0f);
-    glRotatef(sphereAngle + 180.0f, 1.0f, 0.0f, 0.0f);
-    glCallList(torus + 2);
-    glPopMatrix();
-
-    glPushMatrix();
-    glMaterialfv(GL_FRONT, GL_EMISSION, materialBlue);
-    glTranslatef(-1.0f, 0.0f, 0.0f);
-    glRotatef(-sphereAngle + 270.0f, 0.0f, 1.0f, 0.0f);
-    glCallList(torus + 2);
-    glPopMatrix();
-    glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
+    return;
 }
 
 static void update()
 {
-    int r = 5;
+    int r = 3;
     lightAngle += 0.01;
     if (lightAngle >= 360.0f)
     {
         lightAngle -= 360.0f;
     }
-    sphereAngle += 1;
+
+    sphereAngle += 0.5;
     if (sphereAngle >= 360.0f)
     {
         sphereAngle -= 360.0f;
     }
+
     lightPosition[0] = r * sinf(lightAngle);
     lightPosition[2] = r * cosf(lightAngle);
-    setShadowMatrix(shadowMatrix, lightPosition, plane);
+    setShadowMatrix(shadowMatrix, lightPosition, planeEquation);
 }
 
 static void resize(GLsizei width, GLsizei height)
@@ -457,12 +584,13 @@ static void resize(GLsizei width, GLsizei height)
 
     aspectRatio = (GLfloat)width / (GLfloat)height;
 
-    gluPerspective(60.0f, aspectRatio, 1.0f, 500.0f);
+    gluPerspective(45.0f, aspectRatio, 0.1f, 100.0f);
 }
 
 static void quadloop(GLfloat r, GLfloat R, GLint nsides, GLfloat sideDelta, GLfloat cosTheta, GLfloat sinTheta, GLfloat cosTheta1, GLfloat sinTheta1)
 {
-    GLfloat dist, phi;
+    GLfloat dist;
+    GLfloat phi;
     int     j;
 
     glBegin(GL_QUAD_STRIP);
@@ -532,34 +660,30 @@ static void doughnut(GLfloat r, GLfloat R, GLint nsides, GLint rings)
 
 static void toggleFullscreen(Display *display, Window window)
 {
-    XEvent evt;
+    XEvent event;
 
     Atom wm_state   = XInternAtom(display, "_NET_WM_STATE", False);
     Atom fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
 
-    evt.xclient.type         = ClientMessage;
-    evt.xclient.serial       = 0;
-    evt.xclient.send_event   = True;
-    evt.xclient.message_type = wm_state;
-    evt.xclient.format       = 32;
-    evt.xclient.window       = window;
-    evt.xclient.data.l[0]    = 2; // _NET_WM_STATE_TOGGLE
-    evt.xclient.data.l[1]    = fullscreen;
-    evt.xclient.data.l[2]    = 0;
+    event.xclient.type         = ClientMessage;
+    event.xclient.serial       = 0;
+    event.xclient.send_event   = True;
+    event.xclient.message_type = wm_state;
+    event.xclient.format       = 32;
+    event.xclient.window       = window;
+    event.xclient.data.l[0]    = 2; // _NET_WM_STATE_TOGGLE
+    event.xclient.data.l[1]    = fullscreen;
+    event.xclient.data.l[2]    = 0;
 
-    XSendEvent(display, DefaultRootWindow(display), False, SubstructureRedirectMask | SubstructureNotifyMask, &evt);
+    XSendEvent(display, DefaultRootWindow(display), False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
 }
 
 void drawSurface(void)
 {
     GLfloat fExtent = 4.0f;
-    GLfloat fStep   = 1.0f;
+    GLfloat fStep   = 0.5f;
     GLfloat y       = 0.0f;
     GLfloat iStrip, iRun;
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, floorDiffuse);
-    glMaterialfv(GL_FRONT, GL_SPECULAR, materialSpecular);
-    glMaterialf(GL_FRONT, GL_SHININESS, 128);
-    glMaterialfv(GL_FRONT, GL_EMISSION, colorBlack);
 
     for (iStrip = -fExtent; iStrip <= fExtent; iStrip += fStep)
     {
@@ -574,7 +698,7 @@ void drawSurface(void)
     }
 }
 
-void setShadowMatrix(GLfloat *destMat, float *lightPos, float *plane)
+void setShadowMatrix(GLfloat *destMat, float *lightPos, double *plane)
 {
     GLfloat dot;
 
@@ -604,35 +728,6 @@ void setShadowMatrix(GLfloat *destMat, float *lightPos, float *plane)
     destMat[7]  = 0.0f - lightPos[3] * plane[1];
     destMat[11] = 0.0f - lightPos[3] * plane[2];
     destMat[15] = dot - lightPos[3] * plane[3];
-}
-void aDrawGround(void)
-{
-    GLfloat fExtent = 5.0f;
-    GLfloat fStep   = 0.5f;
-    GLfloat y       = 0.0f;
-    GLint   iBounce = 0;
-    GLfloat iStrip, iRun, fColor;
-
-    glShadeModel(GL_FLAT);
-    for (iStrip = -fExtent; iStrip <= fExtent; iStrip += fStep)
-    {
-        glBegin(GL_TRIANGLE_STRIP);
-        for (iRun = fExtent; iRun >= -fExtent; iRun -= fStep)
-        {
-            if ((iBounce % 2) == 0)
-                fColor = 1.0f;
-            else
-                fColor = 0.0f;
-
-            glColor4f(fColor, fColor, fColor, 0.5f);
-            glVertex3f(iStrip, y, iRun);
-            glVertex3f(iStrip + fStep, y, iRun);
-
-            iBounce++;
-        }
-        glEnd();
-    }
-    glShadeModel(GL_SMOOTH);
 }
 
 void printReport()

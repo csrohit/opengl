@@ -15,5 +15,6 @@ AllowShortFunctionsOnASingleLine: None
 EmptyLineBeforeAccessModifier: Always
 EmptyLineAfterAccessModifier: Always
 MaxEmptyLinesToKeep: 1
+SortIncludes: false
 ...
 
